@@ -1,0 +1,64 @@
+Manual for rtcm3torinex
+
+The program rtcm3torinex is an real-time converter from NTRIP streamed RTCM3
+data into the RINEX format. The generated RINEX is somewhat limited due to
+the streaming character of the conversion:
+ - Header records can only represent data, which is known after receiving the
+   very first epoch. Data rate, position, number of observations and any such
+   additional fields cannot be provided.
+ - The number of observables cannot change during the program runtime. Only
+   the observables, which exist in the first epoch are outputted. If there
+   are new observables later on, these are ignored.
+ - Only known data types are interpreted. This means only GPS data at the
+   moment. Send me new RTCM3 data files and data support can be improved.
+   See contact address at the end of this document.
+ - If the ambiguity field in the RTCM3 data is not set, the output will be no
+   valid RINEX. All values will be stored modulo 299792.458. A COMMENT line
+   will tell you, when this happens. It would be necessary to approximately
+   calculate the range to fix the ambiguity (needing ephemeris/alamanac and
+   easy positioning algorithm).
+
+Usage: rtcm3torinex -s server -u user ...
+ -d --data       the requested data set
+ -f --headerfile file for RINEX header information
+ -s --server     the server name or address
+ -p --password   the login password
+ -r --port       the server port number (default 80)
+ -u --user       the user name
+
+The fields --user and --password are used to specify the access data for the
+NTRIP server. The arguments --server and --port are used to specify the NTRIP
+server itself (defaults to "www.euref-ip.net" port 80). The Argument --data
+must be used to specify the RTCM3 input data stream. If it is not given, you
+will be shown the source table of the selected NTRIP caster.
+
+Additionally the argument --headerfile can be used to provide additional header
+information. The file must contain normal RINEX observation file header lines.
+The given lines overwrite the automatically generated lines. Overwriting the
+lines "# / TYPES OF OBSERV" and "TIME OF FIRST OBS" usually is a bad idea and
+you will get warned if you do so. The line "END OF HEADER" is ignored.
+Unknown lines or COMMENT lines will be appended before the "END OF HEADER".
+
+NOTE: The tool does not check the input lines for validity. So be sure to
+use correct RINEX specifiers as well as correct alignment.
+
+To stop RINEX output send the program a killing signal. Following signal
+sources are supported:
+
+signal    number  usual source of the signal
+---------------------------------------------------------------------------
+SIGINT       2    pressing CTRL+C in the shell running the tool
+SIGQUIT      3    pressing CTRL-\ or sending QUIT signal
+SIGTERM     15    called kill <num> with the process number of rtcm3torinex
+SIGPIPE     13    the output or input of rtcm3torinex has been closed
+
+The programm will be terminated after the current epoch has been finished.
+You will not get corrupted RINEX files.
+
+Contact me with your comments, suggestions, improvements, patches, ...
+
+Dirk Stöcker
+EuroNav Service GmbH
+http://www.euronav.de/
+soft@dstoecker.de
+2006-01-12
