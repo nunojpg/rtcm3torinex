@@ -1,7 +1,7 @@
 /*
   Converter for RTCM3 data to RINEX.
-  $Id$
-  Copyright (C) 2005-2006 by Dirk Stoecker <soft@dstoecker.de>
+  $Id: rtcm3torinex.c,v 1.1 2006/01/12 16:19:10 stoecker Exp $
+  Copyright (C) 2005-2006 by Dirk Stoecker <stoecker@euronav.de>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -41,8 +41,8 @@
 #define MAXDATASIZE 1000 /* max number of bytes we can get at once */
 
 /* CVS revision and version */
-static char revisionstr[] = "$Revision: 1.15 $";
-static char datestr[]     = "$Date: 2005/12/06 16:50:26 $";
+static char revisionstr[] = "$Revision: 1.1 $";
+static char datestr[]     = "$Date: 2006/01/12 16:19:10 $";
 static int stop = 0;
 
 /* unimportant, only for approx. time needed */

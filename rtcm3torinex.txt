@@ -34,7 +34,7 @@ will be shown the source table of the selected NTRIP caster.
 
 Additionally the argument --headerfile can be used to provide additional header
 information. The file must contain normal RINEX observation file header lines.
-The given lines overwrite the automatically generated lines. Overwriting the
+The given lines overwrite the automatical generated lines. Overwriting the
 lines "# / TYPES OF OBSERV" and "TIME OF FIRST OBS" usually is a bad idea and
 you will get warned if you do so. The line "END OF HEADER" is ignored.
 Unknown lines or COMMENT lines will be appended before the "END OF HEADER".
@@ -60,5 +60,5 @@ Contact me with your comments, suggestions, improvements, patches, ...
 Dirk Stöcker
 EuroNav Service GmbH
 http://www.euronav.de/
-soft@dstoecker.de
+stoecker@euronav.de
 2006-01-12
