@@ -1,6 +1,6 @@
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.c,v 1.1 2006/01/12 16:19:10 stoecker Exp $
+  $Id: rtcm3torinex.c,v 1.2 2006/01/13 08:25:10 stoecker Exp $
   Copyright (C) 2005-2006 by Dirk Stoecker <stoecker@euronav.de>
 
   This program is free software; you can redistribute it and/or modify
@@ -41,8 +41,8 @@
 #define MAXDATASIZE 1000 /* max number of bytes we can get at once */
 
 /* CVS revision and version */
-static char revisionstr[] = "$Revision: 1.1 $";
-static char datestr[]     = "$Date: 2006/01/12 16:19:10 $";
+static char revisionstr[] = "$Revision: 1.2 $";
+static char datestr[]     = "$Date: 2006/01/13 08:25:10 $";
 static int stop = 0;
 
 /* unimportant, only for approx. time needed */
@@ -606,7 +606,7 @@ static void HandleHeader(struct RTCM3ParserData *Parser)
   "           RINEX VERSION / TYPE";
 
   {
-    char *str;
+    const char *str;
     time_t t;
     struct tm * t2;
 
@@ -809,12 +809,12 @@ static void HandleHeader(struct RTCM3ParserData *Parser)
 }
 
 /* let the output complete a block if necessary */
-static void signalhandler(int signal)
+static void signalhandler(int sig)
 {
   if(!stop)
   {
     fprintf(stderr, "Stop signal number %d received. "
-    "Trying to terminate gentle.\n", signal);
+    "Trying to terminate gentle.\n", sig);
     stop = 1;
     alarm(1);
   }
@@ -823,9 +823,9 @@ static void signalhandler(int signal)
 /* for some reason we had to abort hard (maybe waiting for data */
 #ifdef __GNUC__
 static __attribute__ ((noreturn)) void signalhandler_alarm(
-int signal __attribute__((__unused__)))
+int sig __attribute__((__unused__)))
 #else /* __GNUC__ */
-static void signalhandler_alarm(int signal)
+static void signalhandler_alarm(int sig)
 #endif /* __GNUC__ */
 {
   fprintf(stderr, "Programm forcefully terminated.\n");
