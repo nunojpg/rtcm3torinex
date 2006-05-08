@@ -1,6 +1,6 @@
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.c,v 1.2 2006/01/13 08:25:10 stoecker Exp $
+  $Id: rtcm3torinex.c,v 1.3 2006/04/20 08:37:23 stoecker Exp $
   Copyright (C) 2005-2006 by Dirk Stoecker <stoecker@euronav.de>
 
   This program is free software; you can redistribute it and/or modify
@@ -41,8 +41,8 @@
 #define MAXDATASIZE 1000 /* max number of bytes we can get at once */
 
 /* CVS revision and version */
-static char revisionstr[] = "$Revision: 1.2 $";
-static char datestr[]     = "$Date: 2006/01/13 08:25:10 $";
+static char revisionstr[] = "$Revision: 1.3 $";
+static char datestr[]     = "$Date: 2006/04/20 08:37:23 $";
 static int stop = 0;
 
 /* unimportant, only for approx. time needed */
@@ -394,7 +394,7 @@ static int RTCM3Parser(struct RTCM3ParserData *handle)
     GETBITS(type,12)
     switch(type)
     {
-    case 1004:
+    case 1001: case 1002: case 1003: case 1004:
       if(handle->GPSWeek)
       {
         int lastlockl1[64];
@@ -423,7 +423,7 @@ static int RTCM3Parser(struct RTCM3ParserData *handle)
 
         for(num = 0; num < gnss->numsats; ++num)
         {
-          int sv, code, l1range, c,l,s,ce,le,se,amb;
+          int sv, code, l1range, c,l,s,ce,le,se,amb=0;
 
           GETBITS(sv, 6);
           gnss->satellites[num] = (sv < 40 ? sv : sv+80);
@@ -457,64 +457,73 @@ static int RTCM3Parser(struct RTCM3ParserData *handle)
           lastlockl1[sv] = i;
           if(handle->lastlockl1[sv] > i)
             gnss->dataflags[num] |= GNSSDF_LOCKLOSSL1;
-          GETBITS(amb,8);
-          if(amb && (gnss->dataflags[num] & c))
+          if(type == 1002 || type == 1004)
           {
-            gnss->measdata[num][ce] += amb*299792.458;
-            gnss->measdata[num][le] += amb*299792.458;
-            ++wasamb;
+            GETBITS(amb,8);
+            if(amb && (gnss->dataflags[num] & c))
+            {
+              gnss->measdata[num][ce] += amb*299792.458;
+              gnss->measdata[num][le] += amb*299792.458;
+              ++wasamb;
+            }
+            GETBITS(i, 8);
+            if(i)
+            {
+              gnss->dataflags[num] |= s;
+              gnss->measdata[num][se] = i*0.25;
+              i /= 4*4;
+              if(i > 9) i = 9;
+              else if(i < 1) i = 1;
+              gnss->snrL1[num] = i;
+            }
           }
-          GETBITS(i, 8);
-          if(i)
+          if(type == 1003 || type == 1004)
           {
-            gnss->dataflags[num] |= s;
-            gnss->measdata[num][se] = i*0.25;
-            i /= 4*4;
-            if(i > 9) i = 9;
-            else if(i < 1) i = 1;
-            gnss->snrL1[num] = i;
-          }
-          /* L2 */
-          GETBITS(code,2);
-          if(code)
-          {
-            c = GNSSDF_P2DATA;  ce = GNSSENTRY_P2DATA;
-            l = GNSSDF_L2PDATA; le = GNSSENTRY_L2PDATA;
-            s = GNSSDF_S2PDATA; se = GNSSENTRY_S2PDATA;
-          }
-          else
-          {
-            c = GNSSDF_C2DATA;  ce = GNSSENTRY_C2DATA;
-            l = GNSSDF_L2CDATA; le = GNSSENTRY_L2CDATA;
-            s = GNSSDF_S2CDATA; se = GNSSENTRY_S2CDATA;
-          }
-          GETBITSSIGN(i,14);
-          if(i != 0x2000)
-          {
-            gnss->dataflags[num] |= c;
-            gnss->measdata[num][ce] = l1range*0.02+i*0.02
-            +amb*299792.458;
-          }
-          GETBITSSIGN(i,20);
-          if(i != 0x80000)
-          {
-            gnss->dataflags[num] |= l;
-            gnss->measdata[num][le] = l1range*0.02+i*0.0005
-            +amb*299792.458;
-          }
-          GETBITS(i,7);
-          lastlockl2[sv] = i;
-          if(handle->lastlockl2[sv] > i)
-            gnss->dataflags[num] |= GNSSDF_LOCKLOSSL2;
-          GETBITS(i, 8);
-          if(i)
-          {
-            gnss->dataflags[num] |= s;
-            gnss->measdata[num][se] = i*0.25;
-            i /= 4*4;
-            if(i > 9) i = 9;
-            else if(i < 1) i = 1;
-            gnss->snrL2[num] = i;
+            /* L2 */
+            GETBITS(code,2);
+            if(code)
+            {
+              c = GNSSDF_P2DATA;  ce = GNSSENTRY_P2DATA;
+              l = GNSSDF_L2PDATA; le = GNSSENTRY_L2PDATA;
+              s = GNSSDF_S2PDATA; se = GNSSENTRY_S2PDATA;
+            }
+            else
+            {
+              c = GNSSDF_C2DATA;  ce = GNSSENTRY_C2DATA;
+              l = GNSSDF_L2CDATA; le = GNSSENTRY_L2CDATA;
+              s = GNSSDF_S2CDATA; se = GNSSENTRY_S2CDATA;
+            }
+            GETBITSSIGN(i,14);
+            if(i != 0x2000)
+            {
+              gnss->dataflags[num] |= c;
+              gnss->measdata[num][ce] = l1range*0.02+i*0.02
+              +amb*299792.458;
+            }
+            GETBITSSIGN(i,20);
+            if(i != 0x80000)
+            {
+              gnss->dataflags[num] |= l;
+              gnss->measdata[num][le] = l1range*0.02+i*0.0005
+              +amb*299792.458;
+            }
+            GETBITS(i,7);
+            lastlockl2[sv] = i;
+            if(handle->lastlockl2[sv] > i)
+              gnss->dataflags[num] |= GNSSDF_LOCKLOSSL2;
+            if(type == 1004)
+            {
+              GETBITS(i, 8);
+              if(i)
+              {
+                gnss->dataflags[num] |= s;
+                gnss->measdata[num][se] = i*0.25;
+                i /= 4*4;
+                if(i > 9) i = 9;
+                else if(i < 1) i = 1;
+                gnss->snrL2[num] = i;
+              }
+            }
           }
         }
         for(i = 0; i < 64; ++i)
