@@ -1,6 +1,6 @@
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.c,v 1.3 2006/04/20 08:37:23 stoecker Exp $
+  $Id: rtcm3torinex.c,v 1.4 2006/05/08 09:25:11 stoecker Exp $
   Copyright (C) 2005-2006 by Dirk Stoecker <stoecker@euronav.de>
 
   This program is free software; you can redistribute it and/or modify
@@ -41,8 +41,8 @@
 #define MAXDATASIZE 1000 /* max number of bytes we can get at once */
 
 /* CVS revision and version */
-static char revisionstr[] = "$Revision: 1.3 $";
-static char datestr[]     = "$Date: 2006/04/20 08:37:23 $";
+static char revisionstr[] = "$Revision: 1.4 $";
+static char datestr[]     = "$Date: 2006/05/08 09:25:11 $";
 static int stop = 0;
 
 /* unimportant, only for approx. time needed */
@@ -114,6 +114,11 @@ struct converttimeinfo {
 /* Additional flags for the data field, which tell us more. */
 #define GNSSDF_LOCKLOSSL1     (1<<29)  /* lost lock on L1 */
 #define GNSSDF_LOCKLOSSL2     (1<<30)  /* lost lock on L2 */
+#define LIGHTSPEED         2.99792458e8  /* m/sec */
+#define GPS_FREQU_L1       1575420000.0  /* Hz */
+#define GPS_FREQU_L2       1227600000.0  /* Hz */
+#define GPS_WAVELENGTH_L1  (LIGHTSPEED / GPS_FREQU_L1) /* m */
+#define GPS_WAVELENGTH_L2  (LIGHTSPEED / GPS_FREQU_L2) /* m */
 
 struct gnssdata {
   int    flags;              /* GPSF_xxx */
@@ -477,6 +482,7 @@ static int RTCM3Parser(struct RTCM3ParserData *handle)
               gnss->snrL1[num] = i;
             }
           }
+          gnss->measdata[num][le] /= GPS_WAVELENGTH_L1;
           if(type == 1003 || type == 1004)
           {
             /* L2 */
@@ -524,6 +530,7 @@ static int RTCM3Parser(struct RTCM3ParserData *handle)
                 gnss->snrL2[num] = i;
               }
             }
+            gnss->measdata[num][le] /= GPS_WAVELENGTH_L2;
           }
         }
         for(i = 0; i < 64; ++i)
