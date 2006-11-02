@@ -1,6 +1,6 @@
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.c,v 1.5 2006/08/29 15:42:36 stoecker Exp $
+  $Id: rtcm3torinex.c,v 1.6 2006/11/02 13:34:00 stoecker Exp $
   Copyright (C) 2005-2006 by Dirk Stoecker <stoecker@euronik.eu>
 
   This software is a complete NTRIP-RTCM3 to RINEX converter as well as
@@ -42,60 +42,14 @@
 #include <sys/socket.h>
 #endif
 
+#ifndef sparc
+#include <stdint.h>
+#endif
+
 #include "rtcm3torinex.h"
 
 /* CVS revision and version */
-static char revisionstr[] = "$Revision: 1.5 $";
-static char datestr[]     = "$Date: 2006/08/29 15:42:36 $";
-
-static const char encodingTable [64] = {
-  'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P',
-  'Q','R','S','T','U','V','W','X','Y','Z','a','b','c','d','e','f',
-  'g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v',
-  'w','x','y','z','0','1','2','3','4','5','6','7','8','9','+','/'
-};
-
-/* does not buffer overrun, but breaks directly after an error */
-/* returns the number of required bytes */
-static int encode(char *buf, int size, const char *user, const char *pwd)
-{
-  unsigned char inbuf[3];
-  char *out = buf;
-  int i, sep = 0, fill = 0, bytes = 0;
-
-  while(*user || *pwd)
-  {
-    i = 0;
-    while(i < 3 && *user) inbuf[i++] = *(user++);
-    if(i < 3 && !sep)    {inbuf[i++] = ':'; ++sep; }
-    while(i < 3 && *pwd)  inbuf[i++] = *(pwd++);
-    while(i < 3)         {inbuf[i++] = 0; ++fill; }
-    if(out-buf < size-1)
-      *(out++) = encodingTable[(inbuf [0] & 0xFC) >> 2];
-    if(out-buf < size-1)
-      *(out++) = encodingTable[((inbuf [0] & 0x03) << 4)
-               | ((inbuf [1] & 0xF0) >> 4)];
-    if(out-buf < size-1)
-    {
-      if(fill == 2)
-        *(out++) = '=';
-      else
-        *(out++) = encodingTable[((inbuf [1] & 0x0F) << 2)
-                 | ((inbuf [2] & 0xC0) >> 6)];
-    }
-    if(out-buf < size-1)
-    {
-      if(fill >= 1)
-        *(out++) = '=';
-      else
-        *(out++) = encodingTable[inbuf [2] & 0x3F];
-    }
-    bytes += 4;
-  }
-  if(out-buf < size)
-    *out = 0;
-  return bytes;
-}
+static char revisionstr[] = "$Revision: 1.6 $";
 
 static uint32_t CRC24(long size, const unsigned char *buf)
 {
@@ -432,6 +386,17 @@ void HandleHeader(struct RTCM3ParserData *Parser)
     time_t t;
     struct tm * t2;
 
+#ifdef NO_RTCM3_MAIN
+    if(revisionstr[0] == '$')
+    {
+      char *a;
+      int i=0;
+      for(a = revisionstr+11; *a && *a != ' '; ++a)
+        revisionstr[i++] = *a;
+      revisionstr[i] = 0;
+    }
+#endif
+
     str = getenv("USER");
     if(!str) str = "";
     t = time(&t);
@@ -654,7 +619,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
       }
 
       converttime(&cti, Parser->Data.week,
-      floor(Parser->Data.timeofweek/1000.0));
+      (int)floor(Parser->Data.timeofweek/1000.0));
       printf(" %02d %2d %2d %2d %2d %10.7f  0%3d",
       cti.year%100, cti.month, cti.day, cti.hour, cti.minute, cti.second
       + fmod(Parser->Data.timeofweek/1000.0,1.0), Parser->Data.numsats);
@@ -726,10 +691,61 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
 }
 
 #ifndef NO_RTCM3_MAIN
+static char datestr[]     = "$Date: 2006/11/02 13:34:00 $";
+
 /* The string, which is send as agent in HTTP request */
 #define AGENTSTRING "NTRIP NtripRTCM3ToRINEX"
 
 #define MAXDATASIZE 1000 /* max number of bytes we can get at once */
+
+static const char encodingTable [64] = {
+  'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P',
+  'Q','R','S','T','U','V','W','X','Y','Z','a','b','c','d','e','f',
+  'g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v',
+  'w','x','y','z','0','1','2','3','4','5','6','7','8','9','+','/'
+};
+
+/* does not buffer overrun, but breaks directly after an error */
+/* returns the number of required bytes */
+static int encode(char *buf, int size, const char *user, const char *pwd)
+{
+  unsigned char inbuf[3];
+  char *out = buf;
+  int i, sep = 0, fill = 0, bytes = 0;
+
+  while(*user || *pwd)
+  {
+    i = 0;
+    while(i < 3 && *user) inbuf[i++] = *(user++);
+    if(i < 3 && !sep)    {inbuf[i++] = ':'; ++sep; }
+    while(i < 3 && *pwd)  inbuf[i++] = *(pwd++);
+    while(i < 3)         {inbuf[i++] = 0; ++fill; }
+    if(out-buf < size-1)
+      *(out++) = encodingTable[(inbuf [0] & 0xFC) >> 2];
+    if(out-buf < size-1)
+      *(out++) = encodingTable[((inbuf [0] & 0x03) << 4)
+               | ((inbuf [1] & 0xF0) >> 4)];
+    if(out-buf < size-1)
+    {
+      if(fill == 2)
+        *(out++) = '=';
+      else
+        *(out++) = encodingTable[((inbuf [1] & 0x0F) << 2)
+                 | ((inbuf [2] & 0xC0) >> 6)];
+    }
+    if(out-buf < size-1)
+    {
+      if(fill >= 1)
+        *(out++) = '=';
+      else
+        *(out++) = encodingTable[inbuf [2] & 0x3F];
+    }
+    bytes += 4;
+  }
+  if(out-buf < size)
+    *out = 0;
+  return bytes;
+}
 
 static int stop = 0;
 
