@@ -1,7 +1,12 @@
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.c,v 1.4 2006/05/08 09:25:11 stoecker Exp $
-  Copyright (C) 2005-2006 by Dirk Stoecker <stoecker@euronav.de>
+  $Id: rtcm3torinex.c,v 1.5 2006/08/29 15:42:36 stoecker Exp $
+  Copyright (C) 2005-2006 by Dirk Stoecker <stoecker@euronik.eu>
+
+  This software is a complete NTRIP-RTCM3 to RINEX converter as well as
+  a module of the BNC tool for multiformat conversion. Contact Dirk
+  Stöcker for suggestions and bug reports related to the RTCM3 to RINEX
+  conversion problems and the author of BNC for all the other problems.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,226 +26,27 @@
 
 #include <ctype.h>
 #include <errno.h>
-#include <getopt.h>
 #include <math.h>
-#include <netdb.h>
-#include <netinet/in.h>
 #include <signal.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/socket.h>
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
 
-/* The string, which is send as agent in HTTP request */
-#define AGENTSTRING "NTRIP NtripRTCM3ToRINEX"
+#ifndef NO_RTCM3_MAIN
+#include <getopt.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#endif
 
-#define MAXDATASIZE 1000 /* max number of bytes we can get at once */
+#include "rtcm3torinex.h"
 
 /* CVS revision and version */
-static char revisionstr[] = "$Revision: 1.4 $";
-static char datestr[]     = "$Date: 2006/05/08 09:25:11 $";
-static int stop = 0;
-
-/* unimportant, only for approx. time needed */
-#define LEAPSECONDS 14
-
-struct converttimeinfo {
-  int second;    /* seconds of GPS time [0..59] */
-  int minute;    /* minutes of GPS time [0..59] */
-  int hour;      /* hour of GPS time [0..24] */
-  int day;       /* day of GPS time [1..28..30(31)*/
-  int month;     /* month of GPS time [1..12]*/
-  int year;      /* year of GPS time [1980..] */
-};
-
-#define PRN_GPS_START             1
-#define PRN_GPS_END               32
-#define PRN_GLONASS_START         38
-#define PRN_GLONASS_END           61
-
-#define GNSSENTRY_C1DATA     0
-#define GNSSENTRY_C2DATA     1
-#define GNSSENTRY_P1DATA     2
-#define GNSSENTRY_P2DATA     3
-#define GNSSENTRY_L1CDATA    4
-#define GNSSENTRY_L1PDATA    5
-#define GNSSENTRY_L2CDATA    6
-#define GNSSENTRY_L2PDATA    7
-#define GNSSENTRY_D1CDATA    8
-#define GNSSENTRY_D1PDATA    9
-#define GNSSENTRY_D2CDATA    10
-#define GNSSENTRY_D2PDATA    11
-#define GNSSENTRY_S1CDATA    12
-#define GNSSENTRY_S1PDATA    13
-#define GNSSENTRY_S2CDATA    14
-#define GNSSENTRY_S2PDATA    15
-#define GNSSENTRY_NUMBER     16 /* number of types!!! */
-
-/* Data flags. These flags are used in the dataflags field of gpsdata structure
-   and are used the determine, which data fields are filled with valid data. */
-#define GNSSDF_C1DATA         (1<<GNSSENTRY_C1DATA)
-#define GNSSDF_C2DATA         (1<<GNSSENTRY_C2DATA)
-#define GNSSDF_P1DATA         (1<<GNSSENTRY_P1DATA)
-#define GNSSDF_P2DATA         (1<<GNSSENTRY_P2DATA)
-#define GNSSDF_L1CDATA        (1<<GNSSENTRY_L1CDATA)
-#define GNSSDF_L1PDATA        (1<<GNSSENTRY_L1PDATA)
-#define GNSSDF_L2CDATA        (1<<GNSSENTRY_L2CDATA)
-#define GNSSDF_L2PDATA        (1<<GNSSENTRY_L2PDATA)
-#define GNSSDF_D1CDATA        (1<<GNSSENTRY_D1CDATA)
-#define GNSSDF_D1PDATA        (1<<GNSSENTRY_D1PDATA)
-#define GNSSDF_D2CDATA        (1<<GNSSENTRY_D2CDATA)
-#define GNSSDF_D2PDATA        (1<<GNSSENTRY_D2PDATA)
-#define GNSSDF_S1CDATA        (1<<GNSSENTRY_S1CDATA)
-#define GNSSDF_S1PDATA        (1<<GNSSENTRY_S1PDATA)
-#define GNSSDF_S2CDATA        (1<<GNSSENTRY_S2CDATA)
-#define GNSSDF_S2PDATA        (1<<GNSSENTRY_S2PDATA)
-
-#define RINEXENTRY_C1DATA     0
-#define RINEXENTRY_C2DATA     1
-#define RINEXENTRY_P1DATA     2
-#define RINEXENTRY_P2DATA     3
-#define RINEXENTRY_L1DATA     4
-#define RINEXENTRY_L2DATA     5
-#define RINEXENTRY_D1DATA     6
-#define RINEXENTRY_D2DATA     7
-#define RINEXENTRY_S1DATA     8
-#define RINEXENTRY_S2DATA     9
-#define RINEXENTRY_NUMBER     10
-
-/* Additional flags for the data field, which tell us more. */
-#define GNSSDF_LOCKLOSSL1     (1<<29)  /* lost lock on L1 */
-#define GNSSDF_LOCKLOSSL2     (1<<30)  /* lost lock on L2 */
-#define LIGHTSPEED         2.99792458e8  /* m/sec */
-#define GPS_FREQU_L1       1575420000.0  /* Hz */
-#define GPS_FREQU_L2       1227600000.0  /* Hz */
-#define GPS_WAVELENGTH_L1  (LIGHTSPEED / GPS_FREQU_L1) /* m */
-#define GPS_WAVELENGTH_L2  (LIGHTSPEED / GPS_FREQU_L2) /* m */
-
-struct gnssdata {
-  int    flags;              /* GPSF_xxx */
-  int    week;               /* week number of GPS date */
-  int    numsats;
-  double timeofweek;         /* milliseconds in GPS week */
-  double measdata[24][GNSSENTRY_NUMBER];  /* data fields */ 
-  int    dataflags[24];      /* GPSDF_xxx */
-  int    satellites[24];     /* SV - IDs */
-  int    snrL1[24];          /* Important: all the 5 SV-specific fields must */
-  int    snrL2[24];          /* have the same SV-order */
-};
-
-struct RTCM3ParserData {
-  unsigned char Message[2048]; /* input-buffer */
-  int    MessageSize;   /* current buffer size */
-  int    NeedBytes;     /* bytes wanted for next run */
-  int    SkipBytes;     /* bytes to skip in next round */
-  int    GPSWeek;
-  int    GPSTOW;        /* in seconds */
-  struct gnssdata Data;
-  int    size;
-  int    lastlockl1[64];
-  int    lastlockl2[64];
-  int    datapos[RINEXENTRY_NUMBER];
-  int    dataflag[RINEXENTRY_NUMBER];
-  int    numdatatypes;
-  int    validwarning;
-  int    init;
-  const char * headerfile;
-};
-
-struct Args
-{
-  const char *server;
-  int         port;
-  const char *user;
-  const char *password;
-  const char *data;
-  const char *headerfile;
-};
-
-/* option parsing */
-#ifdef NO_LONG_OPTS
-#define LONG_OPT(a)
-#else
-#define LONG_OPT(a) a
-static struct option opts[] = {
-{ "data",       required_argument, 0, 'd'},
-{ "server",     required_argument, 0, 's'},
-{ "password",   required_argument, 0, 'p'},
-{ "port",       required_argument, 0, 'r'},
-{ "header",     required_argument, 0, 'f'},
-{ "user",       required_argument, 0, 'u'},
-{ "help",       no_argument,       0, 'h'},
-{0,0,0,0}};
-#endif
-#define ARGOPT "d:hp:r:s:u:f:"
-
-static int getargs(int argc, char **argv, struct Args *args)
-{
-  int res = 1;
-  int getoptr;
-  int help = 0;
-  char *t;
-
-  args->server = "www.euref-ip.net";
-  args->port = 80;
-  args->user = "";
-  args->password = "";
-  args->data = 0;
-  args->headerfile = 0;
-  help = 0;
-
-  do
-  {
-#ifdef NO_LONG_OPTS
-    switch((getoptr = getopt(argc, argv, ARGOPT)))
-#else
-    switch((getoptr = getopt_long(argc, argv, ARGOPT, opts, 0)))
-#endif
-    {
-    case 's': args->server = optarg; break;
-    case 'u': args->user = optarg; break;
-    case 'p': args->password = optarg; break;
-    case 'd': args->data = optarg; break;
-    case 'f': args->headerfile = optarg; break;
-    case 'h': help=1; break;
-    case 'r': 
-      args->port = strtoul(optarg, &t, 10);
-      if((t && *t) || args->port < 1 || args->port > 65535)
-        res = 0;
-      break;
-    case -1: break;
-    }
-  } while(getoptr != -1 || !res);
-
-  datestr[0] = datestr[7];
-  datestr[1] = datestr[8];
-  datestr[2] = datestr[9];
-  datestr[3] = datestr[10];
-  datestr[5] = datestr[12];
-  datestr[6] = datestr[13];
-  datestr[8] = datestr[15];
-  datestr[9] = datestr[16];
-  datestr[4] = datestr[7] = '-';
-  datestr[10] = 0;
-
-  if(!res || help)
-  {
-    fprintf(stderr, "Version %s (%s) GPL\nUsage: %s -s server -u user ...\n"
-    " -d " LONG_OPT("--data       ") "the requested data set\n"
-    " -f " LONG_OPT("--headerfile ") "file for RINEX header information\n"
-    " -s " LONG_OPT("--server     ") "the server name or address\n"
-    " -p " LONG_OPT("--password   ") "the login password\n"
-    " -r " LONG_OPT("--port       ") "the server port number (default 80)\n"
-    " -u " LONG_OPT("--user       ") "the user name\n"
-    , revisionstr, datestr, argv[0]);
-    exit(1);
-  }
-  return res;
-}
+static char revisionstr[] = "$Revision: 1.5 $";
+static char datestr[]     = "$Date: 2006/08/29 15:42:36 $";
 
 static const char encodingTable [64] = {
   'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P',
@@ -384,7 +190,7 @@ static int GetMessage(struct RTCM3ParserData *handle)
 
 #define SKIPBITS(b) { LOADBITS(b) numbits -= (b); }
 
-static int RTCM3Parser(struct RTCM3ParserData *handle)
+int RTCM3Parser(struct RTCM3ParserData *handle)
 {
   int ret=0;
 
@@ -559,7 +365,7 @@ static int longyear(int year, int month)
   return 0;
 }
 
-static void converttime(struct converttimeinfo *c, int week, int tow)
+void converttime(struct converttimeinfo *c, int week, int tow)
 {
   /* static variables */
   static const int months[13] = {0,31,28,31,30,31,30,31,31,30,31,30,31};
@@ -609,7 +415,7 @@ struct HeaderData
   int  numheaders;
 };
 
-static void HandleHeader(struct RTCM3ParserData *Parser)
+void HandleHeader(struct RTCM3ParserData *Parser)
 {
   struct HeaderData hdata;
   char thebuffer[MAXHEADERBUFFERSIZE];
@@ -721,7 +527,7 @@ static void HandleHeader(struct RTCM3ParserData *Parser)
   {
     struct converttimeinfo cti;
     converttime(&cti, Parser->Data.week,
-    floor(Parser->Data.timeofweek/1000.0));
+    (int)floor(Parser->Data.timeofweek/1000.0));
     hdata.data.named.timeoffirstobs = buffer;
       i = 1+snprintf(buffer, buffersize,
     "  %4d    %2d    %2d    %2d    %2d   %10.7f     GPS         "
@@ -824,31 +630,7 @@ static void HandleHeader(struct RTCM3ParserData *Parser)
   "END OF HEADER\n");
 }
 
-/* let the output complete a block if necessary */
-static void signalhandler(int sig)
-{
-  if(!stop)
-  {
-    fprintf(stderr, "Stop signal number %d received. "
-    "Trying to terminate gentle.\n", sig);
-    stop = 1;
-    alarm(1);
-  }
-}
-
-/* for some reason we had to abort hard (maybe waiting for data */
-#ifdef __GNUC__
-static __attribute__ ((noreturn)) void signalhandler_alarm(
-int sig __attribute__((__unused__)))
-#else /* __GNUC__ */
-static void signalhandler_alarm(int sig)
-#endif /* __GNUC__ */
-{
-  fprintf(stderr, "Programm forcefully terminated.\n");
-  exit(1);
-}
-
-static void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
+void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
 {
   Parser->Message[Parser->MessageSize++] = byte;
   if(Parser->MessageSize >= Parser->NeedBytes)
@@ -941,6 +723,129 @@ static void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
       }
     }
   }
+}
+
+#ifndef NO_RTCM3_MAIN
+/* The string, which is send as agent in HTTP request */
+#define AGENTSTRING "NTRIP NtripRTCM3ToRINEX"
+
+#define MAXDATASIZE 1000 /* max number of bytes we can get at once */
+
+static int stop = 0;
+
+struct Args
+{
+  const char *server;
+  int         port;
+  const char *user;
+  const char *password;
+  const char *data;
+  const char *headerfile;
+};
+
+/* option parsing */
+#ifdef NO_LONG_OPTS
+#define LONG_OPT(a)
+#else
+#define LONG_OPT(a) a
+static struct option opts[] = {
+{ "data",       required_argument, 0, 'd'},
+{ "server",     required_argument, 0, 's'},
+{ "password",   required_argument, 0, 'p'},
+{ "port",       required_argument, 0, 'r'},
+{ "header",     required_argument, 0, 'f'},
+{ "user",       required_argument, 0, 'u'},
+{ "help",       no_argument,       0, 'h'},
+{0,0,0,0}};
+#endif
+#define ARGOPT "d:hp:r:s:u:f:"
+
+static int getargs(int argc, char **argv, struct Args *args)
+{
+  int res = 1;
+  int getoptr;
+  int help = 0;
+  char *t;
+
+  args->server = "www.euref-ip.net";
+  args->port = 80;
+  args->user = "";
+  args->password = "";
+  args->data = 0;
+  args->headerfile = 0;
+  help = 0;
+
+  do
+  {
+#ifdef NO_LONG_OPTS
+    switch((getoptr = getopt(argc, argv, ARGOPT)))
+#else
+    switch((getoptr = getopt_long(argc, argv, ARGOPT, opts, 0)))
+#endif
+    {
+    case 's': args->server = optarg; break;
+    case 'u': args->user = optarg; break;
+    case 'p': args->password = optarg; break;
+    case 'd': args->data = optarg; break;
+    case 'f': args->headerfile = optarg; break;
+    case 'h': help=1; break;
+    case 'r': 
+      args->port = strtoul(optarg, &t, 10);
+      if((t && *t) || args->port < 1 || args->port > 65535)
+        res = 0;
+      break;
+    case -1: break;
+    }
+  } while(getoptr != -1 || !res);
+
+  datestr[0] = datestr[7];
+  datestr[1] = datestr[8];
+  datestr[2] = datestr[9];
+  datestr[3] = datestr[10];
+  datestr[5] = datestr[12];
+  datestr[6] = datestr[13];
+  datestr[8] = datestr[15];
+  datestr[9] = datestr[16];
+  datestr[4] = datestr[7] = '-';
+  datestr[10] = 0;
+
+  if(!res || help)
+  {
+    fprintf(stderr, "Version %s (%s) GPL\nUsage: %s -s server -u user ...\n"
+    " -d " LONG_OPT("--data       ") "the requested data set\n"
+    " -f " LONG_OPT("--headerfile ") "file for RINEX header information\n"
+    " -s " LONG_OPT("--server     ") "the server name or address\n"
+    " -p " LONG_OPT("--password   ") "the login password\n"
+    " -r " LONG_OPT("--port       ") "the server port number (default 80)\n"
+    " -u " LONG_OPT("--user       ") "the user name\n"
+    , revisionstr, datestr, argv[0]);
+    exit(1);
+  }
+  return res;
+}
+
+/* let the output complete a block if necessary */
+static void signalhandler(int sig)
+{
+  if(!stop)
+  {
+    fprintf(stderr, "Stop signal number %d received. "
+    "Trying to terminate gentle.\n", sig);
+    stop = 1;
+    alarm(1);
+  }
+}
+
+/* for some reason we had to abort hard (maybe waiting for data */
+#ifdef __GNUC__
+static __attribute__ ((noreturn)) void signalhandler_alarm(
+int sig __attribute__((__unused__)))
+#else /* __GNUC__ */
+static void signalhandler_alarm(int sig)
+#endif /* __GNUC__ */
+{
+  fprintf(stderr, "Programm forcefully terminated.\n");
+  exit(1);
 }
 
 int main(int argc, char **argv)
@@ -1084,3 +989,4 @@ int main(int argc, char **argv)
   }
   return 0;
 }
+#endif /* NO_RTCM3_MAIN */
