@@ -1,6 +1,6 @@
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.c,v 1.6 2006/11/02 13:34:00 stoecker Exp $
+  $Id: rtcm3torinex.c,v 1.7 2006/11/02 13:54:43 stoecker Exp $
   Copyright (C) 2005-2006 by Dirk Stoecker <stoecker@euronik.eu>
 
   This software is a complete NTRIP-RTCM3 to RINEX converter as well as
@@ -49,7 +49,7 @@
 #include "rtcm3torinex.h"
 
 /* CVS revision and version */
-static char revisionstr[] = "$Revision: 1.6 $";
+static char revisionstr[] = "$Revision: 1.7 $";
 
 static uint32_t CRC24(long size, const unsigned char *buf)
 {
@@ -144,6 +144,93 @@ static int GetMessage(struct RTCM3ParserData *handle)
 
 #define SKIPBITS(b) { LOADBITS(b) numbits -= (b); }
 
+struct leapseconds { /* specify the day of leap second */
+  int day;        /* this is the day, where 23:59:59 exists 2 times */
+  int month;      /* not the next day! */
+  int year;
+  int taicount;
+}; 
+static const int months[13] = {0,31,28,31,30,31,30,31,31,30,31,30,31};
+static const struct leapseconds leap[] = {
+/*{31, 12, 1971, 11},*/
+/*{31, 12, 1972, 12},*/
+/*{31, 12, 1973, 13},*/
+/*{31, 12, 1974, 14},*/
+/*{31, 12, 1975, 15},*/
+/*{31, 12, 1976, 16},*/
+/*{31, 12, 1977, 17},*/
+/*{31, 12, 1978, 18},*/
+/*{31, 12, 1979, 19},*/
+{30, 06, 1981,20},
+{30, 06, 1982,21},
+{30, 06, 1983,22},
+{30, 06, 1985,23},
+{31, 12, 1987,24},
+{31, 12, 1989,25},
+{31, 12, 1990,26},
+{30, 06, 1992,27},
+{30, 06, 1993,28},
+{30, 06, 1994,29},
+{31, 12, 1995,30},
+{30, 06, 1997,31},
+{31, 12, 1998,32},
+{31, 12, 2005,33},
+{0,0,0,0} /* end marker */
+};
+#define GPSLEAPSTART    19 /* 19 leap seconds existed at 6.1.1980 */
+
+static int longyear(int year, int month)
+{
+  if(!(year % 4) && (!(year % 400) || (year % 100)))
+  {
+    if(!month || month == 2)
+      return 1;
+  }
+  return 0;
+}
+
+static int gnumleap(int year, int month, int day)
+{
+  int ls = 0;
+  const struct leapseconds *l;
+
+  for(l = leap; l->taicount && year >= l->year; ++l)
+  {
+    if(year > l->year || month > l->month || day > l->day)
+       ls = l->taicount - GPSLEAPSTART;
+  }
+  return ls;
+}
+
+static void updatetime(int *week, int *tow, int tk)
+{
+  int y,m,d,k,l;
+  unsigned int j = *week*(7*24*60*60) + *tow + 5*24*60*60+3*60*60;
+  int glo_daynumber = 0, glo_timeofday;
+  for(y = 1980; j >= (unsigned int)(k = (l = (365+longyear(y,0)))*24*60*60)
+  + gnumleap(y+1,1,1); ++y)
+  {
+    j -= k; glo_daynumber += l;
+  }
+  for(m = 1; j >= (unsigned int)(k = (l = months[m]+longyear(y, m))*24*60*60)
+  + gnumleap(y, m+1, 1); ++m)
+  {
+    j -= k; glo_daynumber += l;
+  }
+  for(d = 1; j >= 24UL*60UL*60UL + gnumleap(y, m, d+1); ++d)
+    j -= 24*60*60;
+  glo_daynumber -= 16*365+4-d;
+  glo_timeofday = j-gnumleap(y, m, d);
+
+  if(tk < 5*60*1000 && glo_timeofday > 23*60*60)
+    *tow += 24*60*60;
+  else if(glo_timeofday < 5*60 && tk > 23*60*60*1000)
+    *tow -= 24*60*60;
+  *tow += tk/1000-glo_timeofday;
+  if(*tow < 0) {*tow += 24*60*60*7; --*week; }
+  if(*tow >= 24*60*60*7) {*tow -= 24*60*60*7; ++*week; }
+}
+
 int RTCM3Parser(struct RTCM3ParserData *handle)
 {
   int ret=0;
@@ -154,6 +241,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
     the long datatypes in 32 bit */
     uint64_t numbits = 0, bitfield = 0;
     int size = handle->size, type;
+    int syncf, old = 0;
     unsigned char *data = handle->Message+3;
 
     GETBITS(type,12)
@@ -170,18 +258,24 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         for(i = 0; i < 64; ++i)
           lastlockl1[i] = lastlockl2[i] = 0;
 
-        gnss = &handle->Data;
-        memset(gnss, 0, sizeof(*gnss));
+        gnss = &handle->DataNew;
 
         SKIPBITS(12) /* id */
         GETBITS(i,30)
         if(i/1000 < (int)handle->GPSTOW - 86400)
           ++handle->GPSWeek;
         handle->GPSTOW = i/1000;
+        if(gnss->week && (gnss->timeofweek != i || gnss->week
+        != handle->GPSWeek))
+        {
+          handle->Data = *gnss;
+          memset(gnss, 0, sizeof(*gnss));
+          old = 1;
+        }
         gnss->timeofweek = i;
         gnss->week = handle->GPSWeek;
 
-        SKIPBITS(1) /* sync */
+        GETBITS(syncf,1) /* sync */
         GETBITS(i,5)
         gnss->numsats = i;
         SKIPBITS(4) /* smind, smint */
@@ -298,48 +392,193 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
           handle->lastlockl1[i] = lastlockl1[i];
           handle->lastlockl2[i] = lastlockl2[i];
         }
-        if(wasamb) /* not RINEX compatible without */
-          ret = 1;
-        else
-          ret = 2;
+        if(!syncf && !old)
+        {
+          handle->Data = *gnss;
+          memset(gnss, 0, sizeof(*gnss));
+        }
+        if(!syncf || old)
+        {
+          if(wasamb) /* not RINEX compatible without */
+            ret = 1;
+          else
+            ret = 2;
+        }
+      }
+      break;
+    case 1009: case 1010: case 1011: case 1012:
+      {
+        int lastlockl1[64];
+        int lastlockl2[64];
+        struct gnssdata *gnss;
+        int i, num;
+        int wasamb=0;
+
+        for(i = 0; i < 64; ++i)
+          lastlockl1[i] = lastlockl2[i] = 0;
+
+        gnss = &handle->DataNew;
+
+        SKIPBITS(12) /* id */;
+        GETBITS(i,27) /* tk */
+
+        updatetime(&handle->GPSWeek, &handle->GPSTOW, i);
+        i = handle->GPSTOW*1000;
+        if(gnss->week && (gnss->timeofweek != i || gnss->week
+        != handle->GPSWeek))
+        {
+          handle->Data = *gnss;
+          memset(gnss, 0, sizeof(*gnss));
+          old = 1;
+        }
+
+        gnss->timeofweek = i;
+        gnss->week = handle->GPSWeek;
+
+        GETBITS(syncf,1) /* sync */
+        GETBITS(i,5)
+        gnss->numsats += i;
+
+        SKIPBITS(4) /* smind, smint */
+
+        for(num = gnss->numsats-i; num < gnss->numsats; ++num)
+        {
+          int sv, code, l1range, c,l,s,ce,le,se,amb=0;
+
+          GETBITS(sv, 6)
+          if(!sv || sv > 24)
+          {
+            --num; --gnss->numsats;
+          }
+          else
+          {
+            int freq;
+            gnss->satellites[num] = sv-1 + PRN_GLONASS_START;
+            /* L1 */
+            GETBITS(code, 1)
+            GETBITS(freq, 5)
+            if(code)
+            {
+              c = GNSSDF_P1DATA;  ce = GNSSENTRY_P1DATA;
+              l = GNSSDF_L1PDATA; le = GNSSENTRY_L1PDATA;
+              s = GNSSDF_S1PDATA; se = GNSSENTRY_S1PDATA;
+            }
+            else
+            {
+              c = GNSSDF_C1DATA;  ce = GNSSENTRY_C1DATA;
+              l = GNSSDF_L1CDATA; le = GNSSENTRY_L1CDATA;
+              s = GNSSDF_S1CDATA; se = GNSSENTRY_S1CDATA;
+            }
+            GETBITS(l1range, 25)
+            if(l1range != 0x80000)
+            {
+              gnss->dataflags[num] |= c;
+              gnss->measdata[num][ce] = l1range*0.02;
+            }
+            GETBITSSIGN(i, 20)
+            if(i != 0x80000)
+            {
+              gnss->dataflags[num] |= l;
+              gnss->measdata[num][le] = l1range*0.02+i*0.0005;
+            }
+            GETBITS(i, 7)
+            lastlockl1[sv] = i;
+            if(handle->lastlockl1[sv] > i)
+              gnss->dataflags[num] |= GNSSDF_LOCKLOSSL1;
+            if(type == 1010 || type == 1012)
+            {
+              GETBITS(amb,7)
+              if(amb && (gnss->dataflags[num] & c))
+              {
+                gnss->measdata[num][ce] += amb*599584.916;
+                gnss->measdata[num][le] += amb*599584.916;
+                ++wasamb;
+              }
+              GETBITS(i, 8)
+              if(i)
+              {
+                gnss->dataflags[num] |= s;
+                gnss->measdata[num][se] = i*0.25;
+                i /= 4*4;
+                if(i > 9) i = 9;
+                else if(i < 1) i = 1;
+                gnss->snrL1[num] = i;
+              }
+            }
+            gnss->measdata[num][le] /= GLO_WAVELENGTH_L1(freq-7);
+            if(type == 1011 || type == 1012)
+            {
+              /* L2 */
+              GETBITS(code,2)
+              if(code)
+              {
+                c = GNSSDF_P2DATA;  ce = GNSSENTRY_P2DATA;
+                l = GNSSDF_L2PDATA; le = GNSSENTRY_L2PDATA;
+                s = GNSSDF_S2PDATA; se = GNSSENTRY_S2PDATA;
+              }
+              else
+              {
+                c = GNSSDF_C2DATA;  ce = GNSSENTRY_C2DATA;
+                l = GNSSDF_L2CDATA; le = GNSSENTRY_L2CDATA;
+                s = GNSSDF_S2CDATA; se = GNSSENTRY_S2CDATA;
+              }
+              GETBITSSIGN(i,14)
+              if(i != 0x2000)
+              {
+                gnss->dataflags[num] |= c;
+                gnss->measdata[num][ce] = l1range*0.02+i*0.02
+                +amb*599584.916;
+              }
+              GETBITSSIGN(i,20)
+              if(i != 0x80000)
+              {
+                gnss->dataflags[num] |= l;
+                gnss->measdata[num][le] = l1range*0.02+i*0.0005
+                +amb*599584.915;
+              }
+              GETBITS(i,7)
+              lastlockl2[sv] = i;
+              if(handle->lastlockl2[sv] > i)
+                gnss->dataflags[num] |= GNSSDF_LOCKLOSSL2;
+              if(type == 1012)
+              {
+                GETBITS(i, 8)
+                if(i)
+                {
+                  gnss->dataflags[num] |= s;
+                  gnss->measdata[num][se] = i*0.25;
+                  i /= 4*4;
+                  if(i > 9) i = 9;
+                  else if(i < 1) i = 1;
+                  gnss->snrL2[num] = i;
+                }
+              }
+              gnss->measdata[num][le] /= GLO_WAVELENGTH_L2(freq-7);
+            }
+          }
+        }
+        for(i = 0; i < 64; ++i)
+        {
+          handle->lastlockl1[i] = lastlockl1[i];
+          handle->lastlockl2[i] = lastlockl2[i];
+        }
+        if(!syncf && !old)
+        {
+          handle->Data = *gnss;
+          memset(gnss, 0, sizeof(*gnss));
+        }
+        if(!syncf || old)
+        {
+          if(wasamb) /* not RINEX compatible without */
+            ret = 1;
+          else
+            ret = 2;
+        }
       }
       break;
     }
   }
   return ret;
-}
-
-static int longyear(int year, int month)
-{
-  if(!(year % 4) && (!(year % 400) || (year % 100)))
-  {
-    if(!month || month == 2)
-      return 1;
-  }
-  return 0;
-}
-
-void converttime(struct converttimeinfo *c, int week, int tow)
-{
-  /* static variables */
-  static const int months[13] = {0,31,28,31,30,31,30,31,31,30,31,30,31};
-
-  int i, k, doy, j; /* temporary variables */
-  j = week*(7*24*60*60) + tow + 5*24*60*60;
-  for(i = 1980; j >= (k = (365+longyear(i,0))*24*60*60); ++i)
-    j -= k;
-  c->year = i;
-  doy = 1+ (j / (24*60*60));
-  j %= (24*60*60);
-  c->hour = j / (60*60);
-  j %= (60*60);
-  c->minute = j / 60;
-  c->second = j % 60;
-  j = 0;
-  for(i = 1; j + (k = months[i] + longyear(c->year,i)) < doy; ++i)
-    j += k;
-  c->month = i;
-  c->day = doy - j;
 }
 
 struct Header
@@ -368,6 +607,35 @@ struct HeaderData
   } data;
   int  numheaders;
 };
+
+struct converttimeinfo {
+  int second;    /* seconds of GPS time [0..59] */
+  int minute;    /* minutes of GPS time [0..59] */
+  int hour;      /* hour of GPS time [0..24] */
+  int day;       /* day of GPS time [1..28..30(31)*/
+  int month;     /* month of GPS time [1..12]*/
+  int year;      /* year of GPS time [1980..] */
+};
+
+static void converttime(struct converttimeinfo *c, int week, int tow)
+{
+  int i, k, doy, j; /* temporary variables */
+  j = week*(7*24*60*60) + tow + 5*24*60*60;
+  for(i = 1980; j >= (k = (365+longyear(i,0))*24*60*60); ++i)
+    j -= k;
+  c->year = i;
+  doy = 1+ (j / (24*60*60));
+  j %= (24*60*60);
+  c->hour = j / (60*60);
+  j %= (60*60);
+  c->minute = j / 60;
+  c->second = j % 60;
+  j = 0;
+  for(i = 1; j + (k = months[i] + longyear(c->year,i)) < doy; ++i)
+    j += k;
+  c->month = i;
+  c->day = doy - j;
+}
 
 void HandleHeader(struct RTCM3ParserData *Parser)
 {
@@ -646,6 +914,9 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
           else if(Parser->Data.satellites[i] >= PRN_GLONASS_START
           && Parser->Data.satellites[i] <= PRN_GLONASS_END)
             printf("R%02d", Parser->Data.satellites[i] - (PRN_GLONASS_START-1));
+          else if(Parser->Data.satellites[i] >= PRN_WAAS_START
+          && Parser->Data.satellites[i] <= PRN_WAAS_END)
+            printf("S%02d", Parser->Data.satellites[i] - PRN_WAAS_START);
           else
             printf("%3d", Parser->Data.satellites[i]);
         }
@@ -691,7 +962,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
 }
 
 #ifndef NO_RTCM3_MAIN
-static char datestr[]     = "$Date: 2006/11/02 13:34:00 $";
+static char datestr[]     = "$Date: 2006/11/02 13:54:43 $";
 
 /* The string, which is send as agent in HTTP request */
 #define AGENTSTRING "NTRIP NtripRTCM3ToRINEX"
@@ -774,7 +1045,79 @@ static struct option opts[] = {
 { "help",       no_argument,       0, 'h'},
 {0,0,0,0}};
 #endif
-#define ARGOPT "d:hp:r:s:u:f:"
+#define ARGOPT "-d:hp:r:s:u:f:"
+
+static const char *geturl(const char *url, struct Args *args)
+{
+  static char buf[1000];
+  static char *Buffer = buf;
+  static char *Bufend = buf+sizeof(buf);
+
+  if(strncmp("ntrip:", url, 6))
+    return "URL must start with 'ntrip:'.";
+  url += 6; /* skip ntrip: */
+
+  if(*url != '@' && *url != '/')
+  {
+    /* scan for mountpoint */
+    args->data = Buffer;
+    while(*url && *url != '@' && *url != '/' && Buffer != Bufend)
+      *(Buffer++) = *(url++);
+    if(Buffer == args->data)
+      return "Mountpoint required.";
+    else if(Buffer >= Bufend-1)
+      return "Parsing buffer too short.";
+    *(Buffer++) = 0;
+  }
+
+  if(*url == '/') /* username and password */
+  {
+    ++url;
+    args->user = Buffer;
+    while(*url && *url != '@' && *url != ':' && Buffer != Bufend)
+      *(Buffer++) = *(url++);
+    if(Buffer == args->user)
+      return "Username cannot be empty.";
+    else if(Buffer >= Bufend-1)
+      return "Parsing buffer too short.";
+    *(Buffer++) = 0;
+
+    if(*url == ':') ++url;
+
+    args->password = Buffer;
+    while(*url && *url != '@' && Buffer != Bufend)
+      *(Buffer++) = *(url++);
+    if(Buffer == args->password)
+      return "Password cannot be empty.";
+    else if(Buffer >= Bufend-1)
+      return "Parsing buffer too short.";
+    *(Buffer++) = 0;
+  }
+
+  if(*url == '@') /* server */
+  {
+    ++url;
+    args->server = Buffer;
+    while(*url && *url != ':' && Buffer != Bufend)
+      *(Buffer++) = *(url++);
+    if(Buffer == args->server)
+      return "Servername cannot be empty.";
+    else if(Buffer >= Bufend-1)
+      return "Parsing buffer too short.";
+    *(Buffer++) = 0;
+
+    if(*url == ':')
+    {
+      char *s2 = 0;
+      args->port = strtol(++url, &s2, 10);
+      if(*s2 || args->port <= 0 || args->port > 0xFFFF)
+        return "Illegal port number.";
+      url = s2;
+    }
+  }
+
+  return *url ? "Garbage at end of server string." : 0;
+}
 
 static int getargs(int argc, char **argv, struct Args *args)
 {
@@ -810,6 +1153,16 @@ static int getargs(int argc, char **argv, struct Args *args)
       if((t && *t) || args->port < 1 || args->port > 65535)
         res = 0;
       break;
+    case 1:
+      {
+        const char *err;
+        if((err = geturl(optarg, args)))
+        {
+          fprintf(stderr, "%s\n\n", err);
+          res = 0;
+        }
+      }
+      break;
     case -1: break;
     }
   } while(getoptr != -1 || !res);
@@ -834,7 +1187,8 @@ static int getargs(int argc, char **argv, struct Args *args)
     " -p " LONG_OPT("--password   ") "the login password\n"
     " -r " LONG_OPT("--port       ") "the server port number (default 80)\n"
     " -u " LONG_OPT("--user       ") "the user name\n"
-    , revisionstr, datestr, argv[0]);
+    "or using an URL:\n%s ntrip:mountpoint[/username[:password]][@server[:port]]\n"
+    , revisionstr, datestr, argv[0], argv[0]);
     exit(1);
   }
   return res;

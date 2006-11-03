@@ -3,7 +3,7 @@
 
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.c,v 1.5 2006/08/29 15:42:36 stoecker Exp $
+  $Id: rtcm3torinex.h,v 1.1 2006/11/02 13:34:00 stoecker Exp $
   Copyright (C) 2005-2006 by Dirk Stoecker <stoecker@euronik.eu>
 
   This program is free software; you can redistribute it and/or modify
@@ -26,6 +26,8 @@
 #define PRN_GPS_END               32
 #define PRN_GLONASS_START         38
 #define PRN_GLONASS_END           61
+#define PRN_WAAS_START            120
+#define PRN_WAAS_END              138
 
 #define GNSSENTRY_C1DATA     0
 #define GNSSENTRY_C2DATA     1
@@ -76,11 +78,20 @@
 #define RINEXENTRY_S2DATA     9
 #define RINEXENTRY_NUMBER     10
 
-#define LIGHTSPEED         2.99792458e8    /* m/sec                                           */
+#define LIGHTSPEED         2.99792458e8    /* m/sec */
 #define GPS_FREQU_L1       1575420000.0  /* Hz */
 #define GPS_FREQU_L2       1227600000.0  /* Hz */
 #define GPS_WAVELENGTH_L1  (LIGHTSPEED / GPS_FREQU_L1) /* m */
 #define GPS_WAVELENGTH_L2  (LIGHTSPEED / GPS_FREQU_L2) /* m */
+
+#define GLO_FREQU_L1_BASE  1602000000.0  /* Hz */
+#define GLO_FREQU_L2_BASE  1246000000.0  /* Hz */
+#define GLO_FREQU_L1_STEP      562500.0  /* Hz */
+#define GLO_FREQU_L2_STEP      437500.0  /* Hz */
+#define GLO_FREQU_L1(a)      (GLO_FREQU_L1_BASE+(a)*GLO_FREQU_L1_STEP)
+#define GLO_FREQU_L2(a)      (GLO_FREQU_L2_BASE+(a)*GLO_FREQU_L2_STEP)
+#define GLO_WAVELENGTH_L1(a) (LIGHTSPEED / GLO_FREQU_L1(a)) /* m */
+#define GLO_WAVELENGTH_L2(a) (LIGHTSPEED / GLO_FREQU_L2(a)) /* m */
 
 /* unimportant, only for approx. time needed */
 #define LEAPSECONDS 14
@@ -109,6 +120,7 @@ struct RTCM3ParserData {
   int    GPSWeek;
   int    GPSTOW;        /* in seconds */
   struct gnssdata Data;
+  struct gnssdata DataNew;
   int    size;
   int    lastlockl1[64];
   int    lastlockl2[64];
@@ -120,18 +132,8 @@ struct RTCM3ParserData {
   const char * headerfile;
 };
 
-struct converttimeinfo {
-  int second;    /* seconds of GPS time [0..59] */
-  int minute;    /* minutes of GPS time [0..59] */
-  int hour;      /* hour of GPS time [0..24] */
-  int day;       /* day of GPS time [1..28..30(31)*/
-  int month;     /* month of GPS time [1..12]*/
-  int year;      /* year of GPS time [1980..] */
-};
-
 void HandleHeader(struct RTCM3ParserData *Parser);
 int RTCM3Parser(struct RTCM3ParserData *handle);
 void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte);
-void converttime(struct converttimeinfo *c, int week, int tow);
 
 #endif /* RTCM3TORINEX_H */
