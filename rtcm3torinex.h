@@ -3,7 +3,7 @@
 
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.h,v 1.1 2006/11/02 13:34:00 stoecker Exp $
+  $Id: rtcm3torinex.h,v 1.2 2006/11/03 11:50:11 stoecker Exp $
   Copyright (C) 2005-2006 by Dirk Stoecker <stoecker@euronik.eu>
 
   This program is free software; you can redistribute it and/or modify
@@ -129,11 +129,22 @@ struct RTCM3ParserData {
   int    numdatatypes;
   int    validwarning;
   int    init;
+  int    startflags;
   const char * headerfile;
 };
+
+#ifndef PRINTFARG
+#ifdef __GNUC__
+#define PRINTFARG(a,b) __attribute__ ((format(printf, a, b)))
+#else /* __GNUC__ */
+#define PRINTFARG(a,b)
+#endif /* __GNUC__ */
+#endif /* PRINTFARG */
 
 void HandleHeader(struct RTCM3ParserData *Parser);
 int RTCM3Parser(struct RTCM3ParserData *handle);
 void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte);
+void PRINTFARG(1,2) RTCM3Error(const char *fmt, ...);
+void PRINTFARG(1,2) RTCM3Text(const char *fmt, ...);
 
 #endif /* RTCM3TORINEX_H */

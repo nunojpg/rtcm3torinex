@@ -1,6 +1,6 @@
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.c,v 1.8 2006/11/03 11:50:11 stoecker Exp $
+  $Id: rtcm3torinex.c,v 1.9 2006/11/08 17:11:08 stoecker Exp $
   Copyright (C) 2005-2006 by Dirk Stoecker <stoecker@euronik.eu>
 
   This software is a complete NTRIP-RTCM3 to RINEX converter as well as
@@ -28,6 +28,7 @@
 #include <errno.h>
 #include <math.h>
 #include <signal.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,7 +50,7 @@
 #include "rtcm3torinex.h"
 
 /* CVS revision and version */
-static char revisionstr[] = "$Revision: 1.8 $";
+static char revisionstr[] = "$Revision: 1.9 $";
 
 static uint32_t CRC24(long size, const unsigned char *buf)
 {
@@ -108,7 +109,7 @@ static int GetMessage(struct RTCM3ParserData *handle)
   /* copy buffer to front */
   i = m - handle->Message;
   if(i && m < e)
-    memmove(handle->Message, m, handle->MessageSize-i);
+    memmove(handle->Message, m, (size_t)(handle->MessageSize-i));
   handle->MessageSize -= i;
 
   return !handle->NeedBytes;
@@ -637,12 +638,31 @@ static void converttime(struct converttimeinfo *c, int week, int tow)
   c->day = doy - j;
 }
 
+#ifndef NO_RTCM3_MAIN
+void RTCM3Error(const char *fmt, ...)
+{
+  va_list v;
+  va_start(v, fmt);
+  vfprintf(stderr, fmt, v);
+  va_end(v);
+}
+#endif
+
+void RTCM3Text(const char *fmt, ...)
+{
+  va_list v;
+  va_start(v, fmt);
+  vprintf(fmt, v);
+  va_end(v);
+}
+
+#define NUMSTARTSKIP 3
 void HandleHeader(struct RTCM3ParserData *Parser)
 {
   struct HeaderData hdata;
   char thebuffer[MAXHEADERBUFFERSIZE];
   char *buffer = thebuffer;
-  int buffersize = sizeof(thebuffer);
+  size_t buffersize = sizeof(thebuffer);
   int i;
 
   hdata.data.named.version =
@@ -720,7 +740,7 @@ void HandleHeader(struct RTCM3ParserData *Parser)
       tbufferpos += 6; \
     }
 
-    int flags = 0;
+    int flags = Parser->startflags;
     int data[RINEXENTRY_NUMBER];
     char tbuffer[6*RINEXENTRY_NUMBER+1];
     int tbufferpos = 0;
@@ -777,21 +797,21 @@ void HandleHeader(struct RTCM3ParserData *Parser)
     FILE *fh;
     if((fh = fopen(Parser->headerfile, "r")))
     {
-      int siz;
+      size_t siz;
       char *lastblockstart;
       if((siz = fread(buffer, 1, buffersize-1, fh)) > 0)
       {
         buffer[siz] = '\n';
         if(siz == buffersize)
         {
-          fprintf(stderr, "Header file is too large. Only %d bytes read.",
+          RTCM3Error("Header file is too large. Only %d bytes read.",
           siz);
         }
         /* scan the file line by line and enter the entries in the list */
         /* warn for "# / TYPES OF OBSERV" and "TIME OF FIRST OBS" */
         /* overwrites entries, except for comments */
         lastblockstart = buffer;
-        for(i = 0; i < siz; ++i)
+        for(i = 0; i < (int)siz; ++i)
         {
           if(buffer[i] == '\n')
           { /* we found a line */
@@ -802,7 +822,7 @@ void HandleHeader(struct RTCM3ParserData *Parser)
             while(*end == '\t' || *end == ' ' || *end == '\r' || *end == '\n')
               *(end--) = 0;
             if(end-lastblockstart < 60+5) /* short line */
-              fprintf(stderr, "Short Header line '%s' ignored.\n", lastblockstart);
+              RTCM3Error("Short Header line '%s' ignored.\n", lastblockstart);
             else
             {
               int pos;
@@ -818,19 +838,18 @@ void HandleHeader(struct RTCM3ParserData *Parser)
                 if(!strcmp("# / TYPES OF OBSERV", lastblockstart+60)
                 || !strcmp("TIME OF FIRST OBS", lastblockstart+60))
                 {
-                  fprintf(stderr, "Overwriting header '%s' is dangerous.\n",
+                  RTCM3Error("Overwriting header '%s' is dangerous.\n",
                   lastblockstart+60);
                 }
               }
               if(pos >= MAXHEADERLINES)
               {
-                fprintf(stderr,
-                "Maximum number of header lines of %d reached.\n",
+                RTCM3Error("Maximum number of header lines of %d reached.\n",
                 MAXHEADERLINES);
               }
               else if(!strcmp("END OF HEADER", lastblockstart+60))
               {
-                fprintf(stderr, "End of header ignored.\n");
+                RTCM3Error("End of header ignored.\n");
               }
               else
               {
@@ -845,22 +864,22 @@ void HandleHeader(struct RTCM3ParserData *Parser)
       }
       else
       {
-        fprintf(stderr, "Could not read data from headerfile '%s'.\n",
+        RTCM3Error("Could not read data from headerfile '%s'.\n",
         Parser->headerfile);
       }
       fclose(fh);
     }
     else
     {
-      fprintf(stderr, "Could not open header datafile '%s'.\n",
+      RTCM3Error("Could not open header datafile '%s'.\n",
       Parser->headerfile);
     }
   }
 
 #ifndef NO_RTCM3_MAIN
   for(i = 0; i < hdata.numheaders; ++i)
-    printf("%s\n", hdata.data.unnamed[i]);
-  printf("                                                            "
+    RTCM3Text("%s\n", hdata.data.unnamed[i]);
+  RTCM3Text("                                                            "
   "END OF HEADER\n");
 #endif
 }
@@ -876,53 +895,61 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
       int i, j, o;
       struct converttimeinfo cti;
 
-      if(!Parser->init)
+      if(Parser->init < NUMSTARTSKIP) /* skip first epochs to detect correct data types */
       {
-        HandleHeader(Parser);
-        Parser->init = 1;
+        ++Parser->init;
+
+        if(Parser->init == NUMSTARTSKIP)
+          HandleHeader(Parser);
+        else
+        {
+          for(i = 0; i < Parser->Data.numsats; ++i)
+            Parser->startflags |= Parser->Data.dataflags[i];
+          continue;
+        }
       }
       if(r == 2 && !Parser->validwarning)
       {
-        printf("No valid RINEX! All values are modulo 299792.458!"
+        RTCM3Text("No valid RINEX! All values are modulo 299792.458!"
         "           COMMENT\n");
         Parser->validwarning = 1;
       }
 
       converttime(&cti, Parser->Data.week,
       (int)floor(Parser->Data.timeofweek/1000.0));
-      printf(" %02d %2d %2d %2d %2d %10.7f  0%3d",
+      RTCM3Text(" %02d %2d %2d %2d %2d %10.7f  0%3d",
       cti.year%100, cti.month, cti.day, cti.hour, cti.minute, cti.second
       + fmod(Parser->Data.timeofweek/1000.0,1.0), Parser->Data.numsats);
       for(i = 0; i < 12 && i < Parser->Data.numsats; ++i)
       {
         if(Parser->Data.satellites[i] <= PRN_GPS_END)
-          printf("G%02d", Parser->Data.satellites[i]);
+          RTCM3Text("G%02d", Parser->Data.satellites[i]);
         else if(Parser->Data.satellites[i] >= PRN_GLONASS_START
         && Parser->Data.satellites[i] <= PRN_GLONASS_END)
-          printf("R%02d", Parser->Data.satellites[i] - (PRN_GLONASS_START-1));
+          RTCM3Text("R%02d", Parser->Data.satellites[i] - (PRN_GLONASS_START-1));
         else
-          printf("%3d", Parser->Data.satellites[i]);
+          RTCM3Text("%3d", Parser->Data.satellites[i]);
       }
-      printf("\n");
+      RTCM3Text("\n");
       o = 12;
       j = Parser->Data.numsats - 12;
       while(j > 0)
       {
-        printf("                                ");
+        RTCM3Text("                                ");
         for(i = o; i < o+12 && i < Parser->Data.numsats; ++i)
         {
           if(Parser->Data.satellites[i] <= PRN_GPS_END)
-            printf("G%02d", Parser->Data.satellites[i]);
+            RTCM3Text("G%02d", Parser->Data.satellites[i]);
           else if(Parser->Data.satellites[i] >= PRN_GLONASS_START
           && Parser->Data.satellites[i] <= PRN_GLONASS_END)
-            printf("R%02d", Parser->Data.satellites[i] - (PRN_GLONASS_START-1));
+            RTCM3Text("R%02d", Parser->Data.satellites[i] - (PRN_GLONASS_START-1));
           else if(Parser->Data.satellites[i] >= PRN_WAAS_START
           && Parser->Data.satellites[i] <= PRN_WAAS_END)
-            printf("S%02d", Parser->Data.satellites[i] - PRN_WAAS_START);
+            RTCM3Text("S%02d", Parser->Data.satellites[i] - PRN_WAAS_START);
           else
-            printf("%3d", Parser->Data.satellites[i]);
+            RTCM3Text("%3d", Parser->Data.satellites[i]);
         }
-        printf("\n");
+        RTCM3Text("\n");
         j -= 12;
         o += 12;
       }
@@ -934,7 +961,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
           || isnan(Parser->Data.measdata[i][Parser->datapos[j]])
           || isinf(Parser->Data.measdata[i][Parser->datapos[j]]))
           { /* no or illegal data */
-            printf("                ");
+            RTCM3Text("                ");
           }
           else
           {
@@ -952,11 +979,11 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
                 lli = '1';
               snr = '0'+Parser->Data.snrL2[i];
             }
-            printf("%14.3f%c%c",
+            RTCM3Text("%14.3f%c%c",
             Parser->Data.measdata[i][Parser->datapos[j]],lli,snr);
           }
           if(j%5 == 4 || j == Parser->numdatatypes-1)
-            printf("\n");
+            RTCM3Text("\n");
         }
       }
     }
@@ -964,7 +991,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
 }
 
 #ifndef NO_RTCM3_MAIN
-static char datestr[]     = "$Date: 2006/11/03 11:50:11 $";
+static char datestr[]     = "$Date: 2006/11/08 17:11:08 $";
 
 /* The string, which is send as agent in HTTP request */
 #define AGENTSTRING "NTRIP NtripRTCM3ToRINEX"
@@ -1160,7 +1187,7 @@ static int getargs(int argc, char **argv, struct Args *args)
         const char *err;
         if((err = geturl(optarg, args)))
         {
-          fprintf(stderr, "%s\n\n", err);
+          RTCM3Error("%s\n\n", err);
           res = 0;
         }
       }
@@ -1182,7 +1209,7 @@ static int getargs(int argc, char **argv, struct Args *args)
 
   if(!res || help)
   {
-    fprintf(stderr, "Version %s (%s) GPL\nUsage: %s -s server -u user ...\n"
+    RTCM3Error("Version %s (%s) GPL\nUsage: %s -s server -u user ...\n"
     " -d " LONG_OPT("--data       ") "the requested data set\n"
     " -f " LONG_OPT("--headerfile ") "file for RINEX header information\n"
     " -s " LONG_OPT("--server     ") "the server name or address\n"
@@ -1201,7 +1228,7 @@ static void signalhandler(int sig)
 {
   if(!stop)
   {
-    fprintf(stderr, "Stop signal number %d received. "
+    RTCM3Error("Stop signal number %d received. "
     "Trying to terminate gentle.\n", sig);
     stop = 1;
     alarm(1);
@@ -1216,7 +1243,7 @@ int sig __attribute__((__unused__)))
 static void signalhandler_alarm(int sig)
 #endif /* __GNUC__ */
 {
-  fprintf(stderr, "Programm forcefully terminated.\n");
+  RTCM3Error("Programm forcefully terminated.\n");
   exit(1);
 }
 
@@ -1305,13 +1332,13 @@ int main(int argc, char **argv)
       , args.data, AGENTSTRING, revisionstr);
       if(i > MAXDATASIZE-40 && i < 0) /* second check for old glibc */
       {
-        fprintf(stderr, "Requested data too long\n");
+        RTCM3Error("Requested data too long\n");
         exit(1);
       }
       i += encode(buf+i, MAXDATASIZE-i-5, args.user, args.password);
       if(i > MAXDATASIZE-5)
       {
-        fprintf(stderr, "Username and/or password too long\n");
+        RTCM3Error("Username and/or password too long\n");
         exit(1);
       }
       snprintf(buf+i, 5, "\r\n\r\n");
@@ -1331,12 +1358,12 @@ int main(int argc, char **argv)
         {
           if(numbytes < 12 || strncmp("ICY 200 OK\r\n", buf, 12))
           {
-            fprintf(stderr, "Could not get the requested data: ");
+            RTCM3Error("Could not get the requested data: ");
             for(k = 0; k < numbytes && buf[k] != '\n' && buf[k] != '\r'; ++k)
             {
-              fprintf(stderr, "%c", isprint(buf[k]) ? buf[k] : '.');
+              RTCM3Error("%c", isprint(buf[k]) ? buf[k] : '.');
             }
-            fprintf(stderr, "\n");
+            RTCM3Error("\n");
             exit(1);
           }
           ++k;
@@ -1345,7 +1372,7 @@ int main(int argc, char **argv)
         {
           int z;
           for(z = 0; z < numbytes && !stop; ++z)
-            HandleByte(&Parser, buf[z]);
+            HandleByte(&Parser, (unsigned int) buf[z]);
         }
       }
     }

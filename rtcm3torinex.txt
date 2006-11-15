@@ -1,15 +1,44 @@
 Manual for rtcm3torinex
 
 The program rtcm3torinex is an real-time converter from NTRIP streamed RTCM3
-data into the RINEX format. The generated RINEX is somewhat limited due to
-the streaming character of the conversion:
+data into the RINEX format.
+
+RTCM3 defines a number of message types. Among them are the following:
+
+Message
+Type  Contains information about
+--------------------------------------------------------------------------
+1001  GPS L1 code and phase
+1002  GPS L1 code and phase and ambiguities and carrier to noise ratio
+1003  GPS L1 and L1 code and phase
+1004  GPS L1 and L2 code and phase and ambiguities and carrier to noise ratio
+1005  Station coordinates XZY for antenna reference point
+1006  Station coordinates XYZ for antenna reference point and antenna height
+1007  Antenna descriptor and ID
+1008  Antenna serial number
+1009  GLONASS L1 code and phase
+1010  GLONASS L1 code and phase and ambiguities and carrier to noise ratio
+1011  GLONASS L1 and L1 code and phase
+1012  GLONASS L1 and L2 code and phase and ambiguities and carrier to noise ratio
+1013  Modified julian date, leep second, configured message types and intervall
+1014-1017 Network RTK (MAK) messages (under development)
+1019  GPS Ephemeris (under development)
+1020  GLONASS Ephemeris (under development)
+4088-4095 Proprietary messages (under development)
+
+Note that this version of rtcm3torinex only handles RTCM3 message types 1001,
+1002, 1003, 1004, 1009, 1010, 1011 and 1012.
+
+The generated RINEX is somewhat limited due to the streaming character of the
+conversion:
+
  - Header records can only represent data, which is known after receiving the
    very first epoch. Data rate, position, number of observations and any such
    additional fields cannot be provided.
  - The number of observables cannot change during the program runtime. Only
    the observables, which exist in the first epoch are outputted. If there
    are new observables later on, these are ignored.
- - Only known data types are interpreted. This means only GPS data at the
+ - Only known message types are interpreted. This means only GPS data at the
    moment. Send me new RTCM3 data files and data support can be improved.
    See contact address at the end of this document.
  - If the ambiguity field in the RTCM3 data is not set, the output will be no
@@ -31,6 +60,10 @@ NTRIP server. The arguments --server and --port are used to specify the NTRIP
 server itself (defaults to "www.euref-ip.net" port 80). The Argument --data
 must be used to specify the RTCM3 input data stream. If it is not given, you
 will be shown the source table of the selected NTRIP caster.
+
+Alternatively a single text of the form
+"ntrip:mountpoint[/username[:password]][@server[:port]]"
+can be used. Everything in brackets is optional.
 
 Additionally the argument --headerfile can be used to provide additional header
 information. The file must contain normal RINEX observation file header lines.
@@ -55,10 +88,27 @@ SIGPIPE     13    the output or input of rtcm3torinex has been closed
 The programm will be terminated after the current epoch has been finished.
 You will not get corrupted RINEX files.
 
-Contact me with your comments, suggestions, improvements, patches, ...
+When compiling the program with older gcc versions running the `make'
+command, you may receive an informative error message saying
 
-Dirk Stöcker
-EuroNav Service GmbH
-http://www.euronav.de/
-stoecker@euronav.de
-2006-01-12
+rtcm3torinex.c: In function `signalhandler_alarm':
+rtcm3torinex.c:1240: warning: `noreturn' function does return
+
+This is most likely a compiler problem which only concerns the optimization
+and is thus not critical. New compilers will not show this problem.
+
+Program written by
+
+Dirk Stoecker
+Euronik GmbH
+http://www.euronik.eu/
+
+for
+
+Federal Agency for Cartography and Geodesy (BKG)
+Richard-Strauss-Allee 11
+D-60598 Frankfurt
+http://igs.bkg.bund.de/index_ntrip.htm
+
+Contact Dirk Stoecker [stoecker@euronik.eu] or [euref-ip@bkg.bund.de]
+with your comments, suggestions, improvements, patches, ...
