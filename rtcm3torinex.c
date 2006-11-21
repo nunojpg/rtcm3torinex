@@ -1,6 +1,6 @@
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.c,v 1.9 2006/11/08 17:11:08 stoecker Exp $
+  $Id: rtcm3torinex.c,v 1.10 2006/11/15 12:31:31 stoecker Exp $
   Copyright (C) 2005-2006 by Dirk Stoecker <stoecker@euronik.eu>
 
   This software is a complete NTRIP-RTCM3 to RINEX converter as well as
@@ -50,7 +50,7 @@
 #include "rtcm3torinex.h"
 
 /* CVS revision and version */
-static char revisionstr[] = "$Revision: 1.9 $";
+static char revisionstr[] = "$Revision: 1.10 $";
 
 static uint32_t CRC24(long size, const unsigned char *buf)
 {
@@ -302,13 +302,13 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
             s = GNSSDF_S1CDATA; se = GNSSENTRY_S1CDATA;
           }
           GETBITS(l1range, 24);
-          if(l1range != 0x80000)
+          if((l1range&((1<<24)-1)) != 0x80000)
           {
             gnss->dataflags[num] |= c;
             gnss->measdata[num][ce] = l1range*0.02;
           }
           GETBITSSIGN(i, 20);
-          if(i != 0x80000)
+          if((i&((1<<20)-1)) != 0x80000)
           {
             gnss->dataflags[num] |= l;
             gnss->measdata[num][le] = l1range*0.02+i*0.0005;
@@ -355,14 +355,14 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
               s = GNSSDF_S2CDATA; se = GNSSENTRY_S2CDATA;
             }
             GETBITSSIGN(i,14);
-            if(i != 0x2000)
+            if((i&((1<<14)-1)) != 0x2000)
             {
               gnss->dataflags[num] |= c;
               gnss->measdata[num][ce] = l1range*0.02+i*0.02
               +amb*299792.458;
             }
             GETBITSSIGN(i,20);
-            if(i != 0x80000)
+            if((i&((1<<20)-1)) != 0x80000)
             {
               gnss->dataflags[num] |= l;
               gnss->measdata[num][le] = l1range*0.02+i*0.0005
@@ -445,56 +445,98 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         for(num = gnss->numsats-i; num < gnss->numsats; ++num)
         {
           int sv, code, l1range, c,l,s,ce,le,se,amb=0;
+          int freq;
 
           GETBITS(sv, 6)
-          if(!sv || sv > 24)
+          gnss->satellites[num] = sv-1 + PRN_GLONASS_START;
+          /* L1 */
+          GETBITS(code, 1)
+          GETBITS(freq, 5)
+          if(code)
           {
-            --num; --gnss->numsats;
+            c = GNSSDF_P1DATA;  ce = GNSSENTRY_P1DATA;
+            l = GNSSDF_L1PDATA; le = GNSSENTRY_L1PDATA;
+            s = GNSSDF_S1PDATA; se = GNSSENTRY_S1PDATA;
           }
           else
           {
-            int freq;
-            gnss->satellites[num] = sv-1 + PRN_GLONASS_START;
-            /* L1 */
-            GETBITS(code, 1)
-            GETBITS(freq, 5)
+            c = GNSSDF_C1DATA;  ce = GNSSENTRY_C1DATA;
+            l = GNSSDF_L1CDATA; le = GNSSENTRY_L1CDATA;
+            s = GNSSDF_S1CDATA; se = GNSSENTRY_S1CDATA;
+          }
+          GETBITS(l1range, 25)
+          if((l1range&((1<<25)-1)) != 0x80000)
+          {
+            gnss->dataflags[num] |= c;
+            gnss->measdata[num][ce] = l1range*0.02;
+          }
+          GETBITSSIGN(i, 20)
+          if((i&((1<<20)-1)) != 0x80000)
+          {
+            gnss->dataflags[num] |= l;
+            gnss->measdata[num][le] = l1range*0.02+i*0.0005;
+          }
+          GETBITS(i, 7)
+          lastlockl1[sv] = i;
+          if(handle->lastlockl1[sv] > i)
+            gnss->dataflags[num] |= GNSSDF_LOCKLOSSL1;
+          if(type == 1010 || type == 1012)
+          {
+            GETBITS(amb,7)
+            if(amb && (gnss->dataflags[num] & c))
+            {
+              gnss->measdata[num][ce] += amb*599584.916;
+              gnss->measdata[num][le] += amb*599584.916;
+              ++wasamb;
+            }
+            GETBITS(i, 8)
+            if(i)
+            {
+              gnss->dataflags[num] |= s;
+              gnss->measdata[num][se] = i*0.25;
+              i /= 4*4;
+              if(i > 9) i = 9;
+              else if(i < 1) i = 1;
+              gnss->snrL1[num] = i;
+            }
+          }
+          gnss->measdata[num][le] /= GLO_WAVELENGTH_L1(freq-7);
+          if(type == 1011 || type == 1012)
+          {
+            /* L2 */
+            GETBITS(code,2)
             if(code)
             {
-              c = GNSSDF_P1DATA;  ce = GNSSENTRY_P1DATA;
-              l = GNSSDF_L1PDATA; le = GNSSENTRY_L1PDATA;
-              s = GNSSDF_S1PDATA; se = GNSSENTRY_S1PDATA;
+              c = GNSSDF_P2DATA;  ce = GNSSENTRY_P2DATA;
+              l = GNSSDF_L2PDATA; le = GNSSENTRY_L2PDATA;
+              s = GNSSDF_S2PDATA; se = GNSSENTRY_S2PDATA;
             }
             else
             {
-              c = GNSSDF_C1DATA;  ce = GNSSENTRY_C1DATA;
-              l = GNSSDF_L1CDATA; le = GNSSENTRY_L1CDATA;
-              s = GNSSDF_S1CDATA; se = GNSSENTRY_S1CDATA;
+              c = GNSSDF_C2DATA;  ce = GNSSENTRY_C2DATA;
+              l = GNSSDF_L2CDATA; le = GNSSENTRY_L2CDATA;
+              s = GNSSDF_S2CDATA; se = GNSSENTRY_S2CDATA;
             }
-            GETBITS(l1range, 25)
-            if(l1range != 0x80000)
+            GETBITSSIGN(i,14)
+            if((i&((1<<14)-1)) != 0x2000)
             {
               gnss->dataflags[num] |= c;
-              gnss->measdata[num][ce] = l1range*0.02;
+              gnss->measdata[num][ce] = l1range*0.02+i*0.02
+              +amb*599584.916;
             }
-            GETBITSSIGN(i, 20)
-            if(i != 0x80000)
+            GETBITSSIGN(i,20)
+            if((i&((1<<20)-1)) != 0x80000)
             {
               gnss->dataflags[num] |= l;
-              gnss->measdata[num][le] = l1range*0.02+i*0.0005;
+              gnss->measdata[num][le] = l1range*0.02+i*0.0005
+              +amb*599584.915;
             }
-            GETBITS(i, 7)
-            lastlockl1[sv] = i;
-            if(handle->lastlockl1[sv] > i)
-              gnss->dataflags[num] |= GNSSDF_LOCKLOSSL1;
-            if(type == 1010 || type == 1012)
+            GETBITS(i,7)
+            lastlockl2[sv] = i;
+            if(handle->lastlockl2[sv] > i)
+              gnss->dataflags[num] |= GNSSDF_LOCKLOSSL2;
+            if(type == 1012)
             {
-              GETBITS(amb,7)
-              if(amb && (gnss->dataflags[num] & c))
-              {
-                gnss->measdata[num][ce] += amb*599584.916;
-                gnss->measdata[num][le] += amb*599584.916;
-                ++wasamb;
-              }
               GETBITS(i, 8)
               if(i)
               {
@@ -503,59 +545,14 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                 i /= 4*4;
                 if(i > 9) i = 9;
                 else if(i < 1) i = 1;
-                gnss->snrL1[num] = i;
+                gnss->snrL2[num] = i;
               }
             }
-            gnss->measdata[num][le] /= GLO_WAVELENGTH_L1(freq-7);
-            if(type == 1011 || type == 1012)
-            {
-              /* L2 */
-              GETBITS(code,2)
-              if(code)
-              {
-                c = GNSSDF_P2DATA;  ce = GNSSENTRY_P2DATA;
-                l = GNSSDF_L2PDATA; le = GNSSENTRY_L2PDATA;
-                s = GNSSDF_S2PDATA; se = GNSSENTRY_S2PDATA;
-              }
-              else
-              {
-                c = GNSSDF_C2DATA;  ce = GNSSENTRY_C2DATA;
-                l = GNSSDF_L2CDATA; le = GNSSENTRY_L2CDATA;
-                s = GNSSDF_S2CDATA; se = GNSSENTRY_S2CDATA;
-              }
-              GETBITSSIGN(i,14)
-              if(i != 0x2000)
-              {
-                gnss->dataflags[num] |= c;
-                gnss->measdata[num][ce] = l1range*0.02+i*0.02
-                +amb*599584.916;
-              }
-              GETBITSSIGN(i,20)
-              if(i != 0x80000)
-              {
-                gnss->dataflags[num] |= l;
-                gnss->measdata[num][le] = l1range*0.02+i*0.0005
-                +amb*599584.915;
-              }
-              GETBITS(i,7)
-              lastlockl2[sv] = i;
-              if(handle->lastlockl2[sv] > i)
-                gnss->dataflags[num] |= GNSSDF_LOCKLOSSL2;
-              if(type == 1012)
-              {
-                GETBITS(i, 8)
-                if(i)
-                {
-                  gnss->dataflags[num] |= s;
-                  gnss->measdata[num][se] = i*0.25;
-                  i /= 4*4;
-                  if(i > 9) i = 9;
-                  else if(i < 1) i = 1;
-                  gnss->snrL2[num] = i;
-                }
-              }
-              gnss->measdata[num][le] /= GLO_WAVELENGTH_L2(freq-7);
-            }
+            gnss->measdata[num][le] /= GLO_WAVELENGTH_L2(freq-7);
+          }
+          if(!sv || sv > 24)
+          {
+            --num; --gnss->numsats;
           }
         }
         for(i = 0; i < 64; ++i)
@@ -991,7 +988,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
 }
 
 #ifndef NO_RTCM3_MAIN
-static char datestr[]     = "$Date: 2006/11/08 17:11:08 $";
+static char datestr[]     = "$Date: 2006/11/15 12:31:31 $";
 
 /* The string, which is send as agent in HTTP request */
 #define AGENTSTRING "NTRIP NtripRTCM3ToRINEX"
