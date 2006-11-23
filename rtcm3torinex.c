@@ -1,6 +1,6 @@
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.c,v 1.10 2006/11/15 12:31:31 stoecker Exp $
+  $Id: rtcm3torinex.c,v 1.11 2006/11/21 08:27:35 stoecker Exp $
   Copyright (C) 2005-2006 by Dirk Stoecker <stoecker@euronik.eu>
 
   This software is a complete NTRIP-RTCM3 to RINEX converter as well as
@@ -50,7 +50,7 @@
 #include "rtcm3torinex.h"
 
 /* CVS revision and version */
-static char revisionstr[] = "$Revision: 1.10 $";
+static char revisionstr[] = "$Revision: 1.11 $";
 
 static uint32_t CRC24(long size, const unsigned char *buf)
 {
@@ -988,7 +988,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
 }
 
 #ifndef NO_RTCM3_MAIN
-static char datestr[]     = "$Date: 2006/11/15 12:31:31 $";
+static char datestr[]     = "$Date: 2006/11/21 08:27:35 $";
 
 /* The string, which is send as agent in HTTP request */
 #define AGENTSTRING "NTRIP NtripRTCM3ToRINEX"
@@ -1153,7 +1153,7 @@ static int getargs(int argc, char **argv, struct Args *args)
   char *t;
 
   args->server = "www.euref-ip.net";
-  args->port = 80;
+  args->port = 2101;
   args->user = "";
   args->password = "";
   args->data = 0;
@@ -1211,7 +1211,7 @@ static int getargs(int argc, char **argv, struct Args *args)
     " -f " LONG_OPT("--headerfile ") "file for RINEX header information\n"
     " -s " LONG_OPT("--server     ") "the server name or address\n"
     " -p " LONG_OPT("--password   ") "the login password\n"
-    " -r " LONG_OPT("--port       ") "the server port number (default 80)\n"
+    " -r " LONG_OPT("--port       ") "the server port number (default 2101)\n"
     " -u " LONG_OPT("--user       ") "the user name\n"
     "or using an URL:\n%s ntrip:mountpoint[/username[:password]][@server[:port]]\n"
     , revisionstr, datestr, argv[0], argv[0]);
@@ -1285,12 +1285,12 @@ int main(int argc, char **argv)
 
     if(!(he=gethostbyname(args.server)))
     {
-      perror("gethostbyname");
+      RTCM3Error("Function gethostbyname: %s\n", strerror(errno));
       exit(1);
     }
     if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
     {
-      perror("socket");
+      RTCM3Error("Function socket: %s\n", strerror(errno));
       exit(1);
     }
     their_addr.sin_family = AF_INET;    /* host byte order */
@@ -1300,7 +1300,7 @@ int main(int argc, char **argv)
     if(connect(sockfd, (struct sockaddr *)&their_addr,
     sizeof(struct sockaddr)) == -1)
     {
-      perror("connect");
+      RTCM3Error("Function connect: %s\n", strerror(errno));
       exit(1);
     }
 
@@ -1343,7 +1343,7 @@ int main(int argc, char **argv)
     }
     if(send(sockfd, buf, (size_t)i, 0) != i)
     {
-      perror("send");
+      RTCM3Error("Function send: %s\n", strerror(errno));
       exit(1);
     }
     if(args.data)
