@@ -3,7 +3,7 @@
 
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.h,v 1.2 2006/11/03 11:50:11 stoecker Exp $
+  $Id: rtcm3torinex.h,v 1.3 2006/11/15 12:31:31 stoecker Exp $
   Copyright (C) 2005-2006 by Dirk Stoecker <stoecker@euronik.eu>
 
   This program is free software; you can redistribute it and/or modify
@@ -92,9 +92,6 @@
 #define GLO_FREQU_L2(a)      (GLO_FREQU_L2_BASE+(a)*GLO_FREQU_L2_STEP)
 #define GLO_WAVELENGTH_L1(a) (LIGHTSPEED / GLO_FREQU_L1(a)) /* m */
 #define GLO_WAVELENGTH_L2(a) (LIGHTSPEED / GLO_FREQU_L2(a)) /* m */
-
-/* unimportant, only for approx. time needed */
-#define LEAPSECONDS 14
 
 /* Additional flags for the data field, which tell us more. */
 #define GNSSDF_LOCKLOSSL1     (1<<29)  /* lost lock on L1 */
