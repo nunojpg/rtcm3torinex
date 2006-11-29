@@ -1,6 +1,6 @@
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.c,v 1.12 2006/11/23 14:39:50 stoecker Exp $
+  $Id: rtcm3torinex.c,v 1.13 2006/11/24 09:53:42 stoecker Exp $
   Copyright (C) 2005-2006 by Dirk Stoecker <stoecker@euronik.eu>
 
   This software is a complete NTRIP-RTCM3 to RINEX converter as well as
@@ -50,7 +50,7 @@
 #include "rtcm3torinex.h"
 
 /* CVS revision and version */
-static char revisionstr[] = "$Revision: 1.12 $";
+static char revisionstr[] = "$Revision: 1.13 $";
 
 static uint32_t CRC24(long size, const unsigned char *buf)
 {
@@ -989,7 +989,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
 }
 
 #ifndef NO_RTCM3_MAIN
-static char datestr[]     = "$Date: 2006/11/23 14:39:50 $";
+static char datestr[]     = "$Date: 2006/11/24 09:53:42 $";
 
 /* The string, which is send as agent in HTTP request */
 #define AGENTSTRING "NTRIP NtripRTCM3ToRINEX"
@@ -1333,14 +1333,16 @@ int main(int argc, char **argv)
         RTCM3Error("Requested data too long\n");
         exit(1);
       }
-      i += encode(buf+i, MAXDATASIZE-i-5, args.user, args.password);
-      if(i > MAXDATASIZE-5)
+      i += encode(buf+i, MAXDATASIZE-i-4, args.user, args.password);
+      if(i > MAXDATASIZE-4)
       {
         RTCM3Error("Username and/or password too long\n");
         exit(1);
       }
-      snprintf(buf+i, 5, "\r\n\r\n");
-      i += 5;
+      buf[i++] = '\r';
+      buf[i++] = '\n';
+      buf[i++] = '\r';
+      buf[i++] = '\n';
     }
     if(send(sockfd, buf, (size_t)i, 0) != i)
     {
