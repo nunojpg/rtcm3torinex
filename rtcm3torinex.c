@@ -1,6 +1,6 @@
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.c,v 1.14 2006/11/29 10:43:15 stoecker Exp $
+  $Id: rtcm3torinex.c,v 1.15 2007/01/11 14:10:13 stoecker Exp $
   Copyright (C) 2005-2006 by Dirk Stoecker <stoecker@euronik.eu>
 
   This software is a complete NTRIP-RTCM3 to RINEX converter as well as
@@ -50,7 +50,7 @@
 #include "rtcm3torinex.h"
 
 /* CVS revision and version */
-static char revisionstr[] = "$Revision: 1.14 $";
+static char revisionstr[] = "$Revision: 1.15 $";
 
 static uint32_t CRC24(long size, const unsigned char *buf)
 {
@@ -740,9 +740,9 @@ void HandleHeader(struct RTCM3ParserData *Parser)
         Parser->dataflag[Parser->numdatatypes] = GNSSDF_##a##DATA; \
         Parser->datapos[Parser->numdatatypes] = GNSSENTRY_##a##DATA; \
         data[RINEXENTRY_##b##DATA] = ++Parser->numdatatypes; \
+        snprintf(tbuffer+tbufferpos, sizeof(tbuffer)-tbufferpos, "    "#b); \
+        tbufferpos += 6; \
       } \
-      snprintf(tbuffer+tbufferpos, sizeof(tbuffer)-tbufferpos, "    "#b); \
-      tbufferpos += 6; \
     }
 
     int flags = Parser->startflags;
@@ -810,7 +810,7 @@ void HandleHeader(struct RTCM3ParserData *Parser)
         if(siz == buffersize)
         {
           RTCM3Error("Header file is too large. Only %d bytes read.",
-          siz);
+          (int)siz);
         }
         /* scan the file line by line and enter the entries in the list */
         /* warn for "# / TYPES OF OBSERV" and "TIME OF FIRST OBS" */
@@ -1016,7 +1016,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
 }
 
 #ifndef NO_RTCM3_MAIN
-static char datestr[]     = "$Date: 2006/11/29 10:43:15 $";
+static char datestr[]     = "$Date: 2007/01/11 14:10:13 $";
 
 /* The string, which is send as agent in HTTP request */
 #define AGENTSTRING "NTRIP NtripRTCM3ToRINEX"
