@@ -1,6 +1,6 @@
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.c,v 1.13 2006/11/24 09:53:42 stoecker Exp $
+  $Id: rtcm3torinex.c,v 1.14 2006/11/29 10:43:15 stoecker Exp $
   Copyright (C) 2005-2006 by Dirk Stoecker <stoecker@euronik.eu>
 
   This software is a complete NTRIP-RTCM3 to RINEX converter as well as
@@ -50,7 +50,7 @@
 #include "rtcm3torinex.h"
 
 /* CVS revision and version */
-static char revisionstr[] = "$Revision: 1.13 $";
+static char revisionstr[] = "$Revision: 1.14 $";
 
 static uint32_t CRC24(long size, const unsigned char *buf)
 {
@@ -728,12 +728,19 @@ void HandleHeader(struct RTCM3ParserData *Parser)
 
   {
 #define CHECKFLAGS(a, b) \
-    if(flags & GNSSDF_##a##DATA \
-    && !data[RINEXENTRY_##b##DATA]) \
+    if(flags & GNSSDF_##a##DATA) \
     { \
-      Parser->dataflag[Parser->numdatatypes] = GNSSDF_##a##DATA; \
-      Parser->datapos[Parser->numdatatypes++] = data[RINEXENTRY_##b##DATA] \
-      = GNSSENTRY_##a##DATA; \
+      if(data[RINEXENTRY_##b##DATA]) \
+      { \
+        Parser->dataflag2[data[RINEXENTRY_##b##DATA]-1] = GNSSDF_##a##DATA; \
+        Parser->datapos2[data[RINEXENTRY_##b##DATA]-1] = GNSSENTRY_##a##DATA; \
+      } \
+      else \
+      { \
+        Parser->dataflag[Parser->numdatatypes] = GNSSDF_##a##DATA; \
+        Parser->datapos[Parser->numdatatypes] = GNSSENTRY_##a##DATA; \
+        data[RINEXENTRY_##b##DATA] = ++Parser->numdatatypes; \
+      } \
       snprintf(tbuffer+tbufferpos, sizeof(tbuffer)-tbufferpos, "    "#b); \
       tbufferpos += 6; \
     }
@@ -955,9 +962,29 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
       {
         for(j = 0; j < Parser->numdatatypes; ++j)
         {
-          if(!(Parser->Data.dataflags[i] & Parser->dataflag[j])
-          || isnan(Parser->Data.measdata[i][Parser->datapos[j]])
-          || isinf(Parser->Data.measdata[i][Parser->datapos[j]]))
+          int v = 0;
+          int df = Parser->dataflag[j];
+          int pos = Parser->datapos[j];
+          if((Parser->Data.dataflags[i] & df)
+          && !isnan(Parser->Data.measdata[i][pos])
+          && !isinf(Parser->Data.measdata[i][pos]))
+          {
+            v = 1;
+          }
+          else
+          {
+            df = Parser->dataflag2[j];
+            pos = Parser->datapos2[j];
+
+            if((Parser->Data.dataflags[i] & df)
+            && !isnan(Parser->Data.measdata[i][pos])
+            && !isinf(Parser->Data.measdata[i][pos]))
+            {
+              v = 1;
+            }
+          }
+
+          if(!v)
           { /* no or illegal data */
             RTCM3Text("                ");
           }
@@ -965,20 +992,20 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
           {
             char lli = ' ';
             char snr = ' ';
-            if(Parser->dataflag[j] & (GNSSDF_L1CDATA|GNSSDF_L1PDATA))
+            if(df & (GNSSDF_L1CDATA|GNSSDF_L1PDATA))
             {
               if(Parser->Data.dataflags[i] & GNSSDF_LOCKLOSSL1)
                 lli = '1';
               snr = '0'+Parser->Data.snrL1[i];
             }
-            if(Parser->dataflag[j] & (GNSSDF_L2CDATA|GNSSDF_L2PDATA))
+            if(df & (GNSSDF_L2CDATA|GNSSDF_L2PDATA))
             {
               if(Parser->Data.dataflags[i] & GNSSDF_LOCKLOSSL2)
                 lli = '1';
               snr = '0'+Parser->Data.snrL2[i];
             }
             RTCM3Text("%14.3f%c%c",
-            Parser->Data.measdata[i][Parser->datapos[j]],lli,snr);
+            Parser->Data.measdata[i][pos],lli,snr);
           }
           if(j%5 == 4 || j == Parser->numdatatypes-1)
             RTCM3Text("\n");
@@ -989,7 +1016,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
 }
 
 #ifndef NO_RTCM3_MAIN
-static char datestr[]     = "$Date: 2006/11/24 09:53:42 $";
+static char datestr[]     = "$Date: 2006/11/29 10:43:15 $";
 
 /* The string, which is send as agent in HTTP request */
 #define AGENTSTRING "NTRIP NtripRTCM3ToRINEX"

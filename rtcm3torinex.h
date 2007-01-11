@@ -3,7 +3,7 @@
 
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.h,v 1.3 2006/11/15 12:31:31 stoecker Exp $
+  $Id: rtcm3torinex.h,v 1.4 2006/11/24 09:53:42 stoecker Exp $
   Copyright (C) 2005-2006 by Dirk Stoecker <stoecker@euronik.eu>
 
   This program is free software; you can redistribute it and/or modify
@@ -123,6 +123,8 @@ struct RTCM3ParserData {
   int    lastlockl2[64];
   int    datapos[RINEXENTRY_NUMBER];
   int    dataflag[RINEXENTRY_NUMBER];
+  int    datapos2[RINEXENTRY_NUMBER];
+  int    dataflag2[RINEXENTRY_NUMBER];
   int    numdatatypes;
   int    validwarning;
   int    init;
