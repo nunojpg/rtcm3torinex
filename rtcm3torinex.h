@@ -1,9 +1,9 @@
 #ifndef RTCM3TORINEX_H
-#define RTCM3TORINES_H
+#define RTCM3TORINEX_H
 
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.h,v 1.4 2006/11/24 09:53:42 stoecker Exp $
+  $Id: rtcm3torinex.h,v 1.5 2007/01/11 14:10:13 stoecker Exp $
   Copyright (C) 2005-2006 by Dirk Stoecker <stoecker@euronik.eu>
 
   This program is free software; you can redistribute it and/or modify
