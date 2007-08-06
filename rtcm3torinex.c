@@ -1,6 +1,6 @@
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.c,v 1.18 2007/04/11 09:08:39 stoecker Exp $
+  $Id: rtcm3torinex.c,v 1.19 2007/08/06 07:42:25 stoecker Exp $
   Copyright (C) 2005-2006 by Dirk Stoecker <stoecker@euronik.eu>
 
   This software is a complete NTRIP-RTCM3 to RINEX converter as well as
@@ -50,7 +50,7 @@
 #include "rtcm3torinex.h"
 
 /* CVS revision and version */
-static char revisionstr[] = "$Revision: 1.18 $";
+static char revisionstr[] = "$Revision: 1.19 $";
 
 #ifndef COMPILEDATE
 #define COMPILEDATE " built " __DATE__
@@ -1020,7 +1020,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
 }
 
 #ifndef NO_RTCM3_MAIN
-static char datestr[]     = "$Date: 2007/04/11 09:08:39 $";
+static char datestr[]     = "$Date: 2007/08/06 07:42:25 $";
 
 /* The string, which is send as agent in HTTP request */
 #define AGENTSTRING "NTRIP NtripRTCM3ToRINEX"
@@ -1255,7 +1255,7 @@ static int getargs(int argc, char **argv, struct Args *args)
     " -s " LONG_OPT("--server     ") "the server name or address\n"
     " -p " LONG_OPT("--password   ") "the login password\n"
     " -r " LONG_OPT("--port       ") "the server port number (default 2101)\n"
-    " -t " LONG_OPT("--timeout    ") "timeout in seconds\n"
+    " -t " LONG_OPT("--timeout    ") "timeout in seconds (default 60)\n"
     " -u " LONG_OPT("--user       ") "the user name\n"
     "or using an URL:\n%s ntrip:mountpoint[/username[:password]][@server[:port]]\n"
     , revisionstr, datestr, argv[0], argv[0]);
