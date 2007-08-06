@@ -1,6 +1,6 @@
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.c,v 1.17 2007/01/23 17:16:39 stoecker Exp $
+  $Id: rtcm3torinex.c,v 1.18 2007/04/11 09:08:39 stoecker Exp $
   Copyright (C) 2005-2006 by Dirk Stoecker <stoecker@euronik.eu>
 
   This software is a complete NTRIP-RTCM3 to RINEX converter as well as
@@ -50,7 +50,7 @@
 #include "rtcm3torinex.h"
 
 /* CVS revision and version */
-static char revisionstr[] = "$Revision: 1.17 $";
+static char revisionstr[] = "$Revision: 1.18 $";
 
 #ifndef COMPILEDATE
 #define COMPILEDATE " built " __DATE__
@@ -1020,7 +1020,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
 }
 
 #ifndef NO_RTCM3_MAIN
-static char datestr[]     = "$Date: 2007/01/23 17:16:39 $";
+static char datestr[]     = "$Date: 2007/04/11 09:08:39 $";
 
 /* The string, which is send as agent in HTTP request */
 #define AGENTSTRING "NTRIP NtripRTCM3ToRINEX"
@@ -1082,6 +1082,7 @@ struct Args
 {
   const char *server;
   int         port;
+  int         timeout;
   const char *user;
   const char *password;
   const char *data;
@@ -1098,12 +1099,13 @@ static struct option opts[] = {
 { "server",     required_argument, 0, 's'},
 { "password",   required_argument, 0, 'p'},
 { "port",       required_argument, 0, 'r'},
+{ "timeout",    required_argument, 0, 't'},
 { "header",     required_argument, 0, 'f'},
 { "user",       required_argument, 0, 'u'},
 { "help",       no_argument,       0, 'h'},
 {0,0,0,0}};
 #endif
-#define ARGOPT "-d:hp:r:s:u:f:"
+#define ARGOPT "-d:s:p:r:t:f:u:h"
 
 static const char *geturl(const char *url, struct Args *args)
 {
@@ -1186,6 +1188,7 @@ static int getargs(int argc, char **argv, struct Args *args)
 
   args->server = "www.euref-ip.net";
   args->port = 2101;
+  args->timeout = 60;
   args->user = "";
   args->password = "";
   args->data = 0;
@@ -1194,6 +1197,7 @@ static int getargs(int argc, char **argv, struct Args *args)
 
   do
   {
+
 #ifdef NO_LONG_OPTS
     switch((getoptr = getopt(argc, argv, ARGOPT)))
 #else
@@ -1211,6 +1215,12 @@ static int getargs(int argc, char **argv, struct Args *args)
       if((t && *t) || args->port < 1 || args->port > 65535)
         res = 0;
       break;
+    case 't': 
+      args->timeout = strtoul(optarg, &t, 10);
+      if((t && *t) || args->timeout < 0)
+        res = 0;
+      break;
+
     case 1:
       {
         const char *err;
@@ -1245,6 +1255,7 @@ static int getargs(int argc, char **argv, struct Args *args)
     " -s " LONG_OPT("--server     ") "the server name or address\n"
     " -p " LONG_OPT("--password   ") "the login password\n"
     " -r " LONG_OPT("--port       ") "the server port number (default 2101)\n"
+    " -t " LONG_OPT("--timeout    ") "timeout in seconds\n"
     " -u " LONG_OPT("--user       ") "the user name\n"
     "or using an URL:\n%s ntrip:mountpoint[/username[:password]][@server[:port]]\n"
     , revisionstr, datestr, argv[0], argv[0]);
@@ -1281,6 +1292,8 @@ int main(int argc, char **argv)
 {
   struct Args args;
   struct RTCM3ParserData Parser;
+
+  struct timeval tv;
 
   setbuf(stdout, 0);
   setbuf(stdin, 0);
@@ -1326,6 +1339,15 @@ int main(int argc, char **argv)
       RTCM3Error("Function socket: %s\n", strerror(errno));
       exit(1);
     }
+
+    tv.tv_sec  = args.timeout;
+    tv.tv_usec = 0;
+    if(setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&tv, sizeof(struct timeval) ) == -1)
+    {
+      RTCM3Error("Function setsockopt: %s\n", strerror(errno));
+      exit(1);
+    }
+
     their_addr.sin_family = AF_INET;    /* host byte order */
     their_addr.sin_port = htons(args.port);  /* short, network byte order */
     their_addr.sin_addr = *((struct in_addr *)he->h_addr);
