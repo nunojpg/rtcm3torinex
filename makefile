@@ -6,3 +6,6 @@ rtcm3torinex: rtcm3torinex.c
 
 archive:
 	zip -9 rtcm3torinex.zip rtcm3torinex.c rtcm3torinex.h rtcm3torinex.txt makefile
+
+clean:
+	$(RM) rtcm3torinex rtcm3torinex.zip
