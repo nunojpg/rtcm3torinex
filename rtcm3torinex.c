@@ -1,6 +1,6 @@
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.c,v 1.19 2007/08/06 07:42:25 stoecker Exp $
+  $Id: rtcm3torinex.c,v 1.20 2007/08/06 07:43:26 stoecker Exp $
   Copyright (C) 2005-2006 by Dirk Stoecker <stoecker@euronik.eu>
 
   This software is a complete NTRIP-RTCM3 to RINEX converter as well as
@@ -50,7 +50,7 @@
 #include "rtcm3torinex.h"
 
 /* CVS revision and version */
-static char revisionstr[] = "$Revision: 1.19 $";
+static char revisionstr[] = "$Revision: 1.20 $";
 
 #ifndef COMPILEDATE
 #define COMPILEDATE " built " __DATE__
@@ -1020,7 +1020,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
 }
 
 #ifndef NO_RTCM3_MAIN
-static char datestr[]     = "$Date: 2007/08/06 07:42:25 $";
+static char datestr[]     = "$Date: 2007/08/06 07:43:26 $";
 
 /* The string, which is send as agent in HTTP request */
 #define AGENTSTRING "NTRIP NtripRTCM3ToRINEX"
@@ -1382,7 +1382,7 @@ int main(int argc, char **argv)
 #endif
       "Authorization: Basic "
       , args.data, AGENTSTRING, revisionstr);
-      if(i > MAXDATASIZE-40 && i < 0) /* second check for old glibc */
+      if(i > MAXDATASIZE-40 || i < 0) /* second check for old glibc */
       {
         RTCM3Error("Requested data too long\n");
         exit(1);
