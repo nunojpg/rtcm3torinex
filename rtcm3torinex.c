@@ -1,6 +1,6 @@
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.c,v 1.20 2007/08/06 07:43:26 stoecker Exp $
+  $Id: rtcm3torinex.c,v 1.21 2007/08/14 10:14:37 stoecker Exp $
   Copyright (C) 2005-2006 by Dirk Stoecker <stoecker@euronik.eu>
 
   This software is a complete NTRIP-RTCM3 to RINEX converter as well as
@@ -50,7 +50,7 @@
 #include "rtcm3torinex.h"
 
 /* CVS revision and version */
-static char revisionstr[] = "$Revision: 1.20 $";
+static char revisionstr[] = "$Revision: 1.21 $";
 
 #ifndef COMPILEDATE
 #define COMPILEDATE " built " __DATE__
@@ -936,6 +936,9 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
         else if(Parser->Data.satellites[i] >= PRN_GLONASS_START
         && Parser->Data.satellites[i] <= PRN_GLONASS_END)
           RTCM3Text("R%02d", Parser->Data.satellites[i] - (PRN_GLONASS_START-1));
+        else if(Parser->Data.satellites[i] >= PRN_WAAS_START
+        && Parser->Data.satellites[i] <= PRN_WAAS_END)
+          RTCM3Text("S%02d", Parser->Data.satellites[i] - PRN_WAAS_START+20);
         else
           RTCM3Text("%3d", Parser->Data.satellites[i]);
       }
@@ -954,7 +957,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
             RTCM3Text("R%02d", Parser->Data.satellites[i] - (PRN_GLONASS_START-1));
           else if(Parser->Data.satellites[i] >= PRN_WAAS_START
           && Parser->Data.satellites[i] <= PRN_WAAS_END)
-            RTCM3Text("S%02d", Parser->Data.satellites[i] - PRN_WAAS_START);
+            RTCM3Text("S%02d", Parser->Data.satellites[i] - PRN_WAAS_START+20);
           else
             RTCM3Text("%3d", Parser->Data.satellites[i]);
         }
@@ -1020,7 +1023,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
 }
 
 #ifndef NO_RTCM3_MAIN
-static char datestr[]     = "$Date: 2007/08/06 07:43:26 $";
+static char datestr[]     = "$Date: 2007/08/14 10:14:37 $";
 
 /* The string, which is send as agent in HTTP request */
 #define AGENTSTRING "NTRIP NtripRTCM3ToRINEX"
