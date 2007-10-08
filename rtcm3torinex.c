@@ -1,6 +1,6 @@
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.c,v 1.22 2007/10/01 11:07:08 stoecker Exp $
+  $Id: rtcm3torinex.c,v 1.23 2007/10/08 12:51:24 stoecker Exp $
   Copyright (C) 2005-2006 by Dirk Stoecker <stoecker@alberding.eu>
 
   This software is a complete NTRIP-RTCM3 to RINEX converter as well as
@@ -50,7 +50,7 @@
 #include "rtcm3torinex.h"
 
 /* CVS revision and version */
-static char revisionstr[] = "$Revision: 1.22 $";
+static char revisionstr[] = "$Revision: 1.23 $";
 
 #ifndef COMPILEDATE
 #define COMPILEDATE " built " __DATE__
@@ -740,6 +740,7 @@ struct Header
   const char *version;
   const char *pgm;
   const char *marker;
+  const char *markertype;
   const char *observer;
   const char *receiver;
   const char *antenna;
@@ -812,7 +813,8 @@ void RTCM3Text(const char *fmt, ...)
   va_end(v);
 }
 
-static int HandleRunBy(char *buffer, int buffersize, const char **u)
+static int HandleRunBy(char *buffer, int buffersize, const char **u,
+int rinex3)
 {
   const char *user;
   time_t t;
@@ -835,9 +837,12 @@ static int HandleRunBy(char *buffer, int buffersize, const char **u)
   t2 = gmtime(&t);
   if(u) *u = user;
   return 1+snprintf(buffer, buffersize,
+  rinex3 ? 
+  "RTCM3TORINEX %-7.7s%-20.20s%04d%02d%02d %02d%02d%02d UTC "
+  "PGM / RUN BY / DATE" :
   "RTCM3TORINEX %-7.7s%-20.20s%04d-%02d-%02d %02d:%02d    "
   "PGM / RUN BY / DATE", revisionstr, user, 1900+t2->tm_year,
-  t2->tm_mon+1, t2->tm_mday, t2->tm_hour, t2->tm_min);
+  t2->tm_mon+1, t2->tm_mday, t2->tm_hour, t2->tm_min, t2->tm_sec);
 }
 
 #define NUMSTARTSKIP 3
@@ -858,7 +863,7 @@ void HandleHeader(struct RTCM3ParserData *Parser)
   {
     const char *str;
     hdata.data.named.pgm = buffer;
-    i = HandleRunBy(buffer, buffersize, &str);
+    i = HandleRunBy(buffer, buffersize, &str, Parser->rinex3);
     buffer += i; buffersize -= i;
     hdata.data.named.observer = buffer;
     i = 1+snprintf(buffer, buffersize,
@@ -870,6 +875,10 @@ void HandleHeader(struct RTCM3ParserData *Parser)
   hdata.data.named.marker =
   "RTCM3TORINEX                                                "
   "MARKER NAME";
+
+  hdata.data.named.markertype =  !Parser->rinex3 ? 0 :
+  "GEODETIC                                                    "
+  "MARKER TYPE";
 
   hdata.data.named.receiver =
   "                                                            "
@@ -1041,7 +1050,7 @@ void HandleHeader(struct RTCM3ParserData *Parser)
     buffer += i; buffersize -= i;
   }
 
-  hdata.numheaders = 14;
+  hdata.numheaders = 15;
 
   if(Parser->headerfile)
   {
@@ -1178,7 +1187,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
               char buffer[100];
               fprintf(Parser->gpsfile,
               "%9.2f%11sN: GNSS NAV DATA    M: Mixed%12sRINEX VERSION / TYPE\n", 3.0, "", "");
-              HandleRunBy(buffer, sizeof(buffer), 0);
+              HandleRunBy(buffer, sizeof(buffer), 0, Parser->rinex3);
               fprintf(Parser->gpsfile, "%s\n%60sEND OF HEADER\n", buffer, "");
             }
             Parser->gpsephemeris = 0;
@@ -1201,7 +1210,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
                 char buffer[100];
                 fprintf(Parser->glonassfile,
                 "%9.2f%11sG: GLONASS NAV DATA%21sRINEX VERSION / TYPE\n", 2.1, "", "");
-                HandleRunBy(buffer, sizeof(buffer), 0);
+                HandleRunBy(buffer, sizeof(buffer), 0, Parser->rinex3);
                 fprintf(Parser->glonassfile, "%s\n%60sEND OF HEADER\n", buffer, "");
               }
               Parser->glonassephemeris = 0;
@@ -1221,7 +1230,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
                 char buffer[100];
                 fprintf(Parser->gpsfile,
                 "%9.2f%11sN: GPS NAV DATA%25sRINEX VERSION / TYPE\n", 2.1, "", "");
-                HandleRunBy(buffer, sizeof(buffer), 0);
+                HandleRunBy(buffer, sizeof(buffer), 0, Parser->rinex3);
                 fprintf(Parser->gpsfile, "%s\n%60sEND OF HEADER\n", buffer, "");
               }
               Parser->gpsephemeris = 0;
@@ -1524,7 +1533,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
 }
 
 #ifndef NO_RTCM3_MAIN
-static char datestr[]     = "$Date: 2007/10/01 11:07:08 $";
+static char datestr[]     = "$Date: 2007/10/08 12:51:24 $";
 
 /* The string, which is send as agent in HTTP request */
 #define AGENTSTRING "NTRIP NtripRTCM3ToRINEX"
@@ -1833,7 +1842,8 @@ static int getargs(int argc, char **argv, struct Args *args)
 
   if(args->gpsephemeris && args->glonassephemeris && args->rinex3)
   {
-    RTCM3Error("RINEX3 produces a combined ephemeris file, but 2 files were specified.\n");
+    RTCM3Error("RINEX3 produces a combined ephemeris file, but 2 files were specified.\n"
+    "Please specify only one navigation file.\n");
     res = 0;
   }
   else if(!res || help)
