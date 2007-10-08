@@ -1,7 +1,7 @@
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.c,v 1.21 2007/08/14 10:14:37 stoecker Exp $
-  Copyright (C) 2005-2006 by Dirk Stoecker <stoecker@euronik.eu>
+  $Id: rtcm3torinex.c,v 1.22 2007/10/01 11:07:08 stoecker Exp $
+  Copyright (C) 2005-2006 by Dirk Stoecker <stoecker@alberding.eu>
 
   This software is a complete NTRIP-RTCM3 to RINEX converter as well as
   a module of the BNC tool for multiformat conversion. Contact Dirk
@@ -50,7 +50,7 @@
 #include "rtcm3torinex.h"
 
 /* CVS revision and version */
-static char revisionstr[] = "$Revision: 1.21 $";
+static char revisionstr[] = "$Revision: 1.22 $";
 
 #ifndef COMPILEDATE
 #define COMPILEDATE " built " __DATE__
@@ -138,6 +138,24 @@ static int GetMessage(struct RTCM3ParserData *handle)
   numbits -= (a); \
 }
 
+/* extract floating value from data stream
+   b = variable to store result, a = number of bits */
+#define GETFLOAT(b, a, c) \
+{ \
+  LOADBITS(a) \
+  b = ((double)((bitfield<<(64-numbits))>>(64-(a))))*(c); \
+  numbits -= (a); \
+}
+
+/* extract signed floating value from data stream
+   b = variable to store result, a = number of bits */
+#define GETFLOATSIGN(b, a, c) \
+{ \
+  LOADBITS(a) \
+  b = ((double)(((int64_t)(bitfield<<(64-numbits)))>>(64-(a))))*(c); \
+  numbits -= (a); \
+}
+
 /* extract bits from data stream
    b = variable to store result, a = number of bits */
 #define GETBITSSIGN(b, a) \
@@ -145,6 +163,15 @@ static int GetMessage(struct RTCM3ParserData *handle)
   LOADBITS(a) \
   b = ((int64_t)(bitfield<<(64-numbits)))>>(64-(a)); \
   numbits -= (a); \
+}
+
+#define GETFLOATSIGNM(b, a, c) \
+{ int l; \
+  LOADBITS(a) \
+  l = (bitfield<<(64-numbits))>>(64-1); \
+  b = ((double)(((bitfield<<(64-(numbits-1))))>>(64-(a-1))))*(c); \
+  numbits -= (a); \
+  if(l) b *= -1.0; \
 }
 
 #define SKIPBITS(b) { LOADBITS(b) numbits -= (b); }
@@ -208,9 +235,9 @@ static int gnumleap(int year, int month, int day)
   return ls;
 }
 
-static void updatetime(int *week, int *tow, int tk)
+static void updatetime(int *week, int *tow, int tk, int fixnumleap)
 {
-  int y,m,d,k,l;
+  int y,m,d,k,l, nul;
   unsigned int j = *week*(7*24*60*60) + *tow + 5*24*60*60+3*60*60;
   int glo_daynumber = 0, glo_timeofday;
   for(y = 1980; j >= (unsigned int)(k = (l = (365+longyear(y,0)))*24*60*60)
@@ -226,13 +253,16 @@ static void updatetime(int *week, int *tow, int tk)
   for(d = 1; j >= 24UL*60UL*60UL + gnumleap(y, m, d+1); ++d)
     j -= 24*60*60;
   glo_daynumber -= 16*365+4-d;
-  glo_timeofday = j-gnumleap(y, m, d);
+  nul = gnumleap(y, m, d);
+  glo_timeofday = j-nul;
 
   if(tk < 5*60*1000 && glo_timeofday > 23*60*60)
     *tow += 24*60*60;
   else if(glo_timeofday < 5*60 && tk > 23*60*60*1000)
     *tow -= 24*60*60;
   *tow += tk/1000-glo_timeofday;
+  if(fixnumleap)
+    *tow -= nul;
   if(*tow < 0) {*tow += 24*60*60*7; --*week; }
   if(*tow >= 24*60*60*7) {*tow -= 24*60*60*7; ++*week; }
 }
@@ -253,6 +283,127 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
     GETBITS(type,12)
     switch(type)
     {
+    case 1019:
+      {
+        struct gpsephemeris *ge;
+        int sv;
+
+        ge = &handle->ephemerisGPS;
+        memset(ge, 0, sizeof(*ge));
+
+        GETBITS(sv, 6)
+        ge->satellite = (sv < 40 ? sv : sv+80);
+        GETBITS(ge->GPSweek, 10)
+        ge->GPSweek += 1024;
+        GETBITS(ge->URAindex, 4)
+        GETBITS(sv, 2)
+        if(sv & 1)
+          ge->flags |= GPSEPHF_L2PCODE;
+        if(sv & 2)
+          ge->flags |= GPSEPHF_L2CACODE;
+        GETFLOATSIGN(ge->IDOT, 14, PI/(double)(1<<30)/(double)(1<<13))
+        GETBITS(ge->IODE, 8)
+        GETBITS(ge->TOC, 16)
+        ge->TOC <<= 4;
+        GETFLOATSIGN(ge->clock_driftrate, 8, 1.0/(double)(1<<30)/(double)(1<<25))
+        GETFLOATSIGN(ge->clock_drift, 16, 1.0/(double)(1<<30)/(double)(1<<13))
+        GETFLOATSIGN(ge->clock_bias, 22, 1.0/(double)(1<<30)/(double)(1<<1))
+        GETBITS(ge->IODC, 10)
+        GETFLOATSIGN(ge->Crs, 16, 1.0/(double)(1<<5))
+        GETFLOATSIGN(ge->Delta_n, 16, PI/(double)(1<<30)/(double)(1<<13))
+        GETFLOATSIGN(ge->M0, 32, PI/(double)(1<<30)/(double)(1<<1))
+        GETFLOATSIGN(ge->Cuc, 16, 1.0/(double)(1<<29))
+        GETFLOAT(ge->e, 32, 1.0/(double)(1<<30)/(double)(1<<3))
+        GETFLOATSIGN(ge->Cus, 16, 1.0/(double)(1<<29))
+        GETFLOAT(ge->sqrt_A, 32, 1.0/(double)(1<<19))
+        GETBITS(ge->TOE, 16)
+        ge->TOE <<= 4;
+
+        GETFLOATSIGN(ge->Cic, 16, 1.0/(double)(1<<29))
+        GETFLOATSIGN(ge->OMEGA0, 32, PI/(double)(1<<30)/(double)(1<<1))
+        GETFLOATSIGN(ge->Cis, 16, 1.0/(double)(1<<29))
+        GETFLOATSIGN(ge->i0, 32, PI/(double)(1<<30)/(double)(1<<1))
+        GETFLOATSIGN(ge->Crc, 16, 1.0/(double)(1<<5))
+        GETFLOATSIGN(ge->omega, 32, PI/(double)(1<<30)/(double)(1<<1))
+        GETFLOATSIGN(ge->OMEGADOT, 24, PI/(double)(1<<30)/(double)(1<<13))
+        GETFLOATSIGN(ge->TGD, 8, 1.0/(double)(1<<30)/(double)(1<<1))
+        GETBITS(ge->SVhealth, 6)
+        GETBITS(sv, 1)
+        if(sv)
+          ge->flags |= GPSEPHF_L2PCODEDATA;
+
+        ret = 1019;
+      }
+      break;
+    case 1020:
+      {
+        struct glonassephemeris *ge;
+        int i;
+
+        ge = &handle->ephemerisGLONASS;
+        memset(ge, 0, sizeof(*ge));
+
+        ge->flags |= GLOEPHF_PAVAILABLE;
+        GETBITS(ge->almanac_number, 6)
+        GETBITS(i, 5)
+        ge->frequency_number = i-7;
+        GETBITS(i, 1)
+        if(i)
+          ge->flags |= GLOEPHF_ALMANACHEALTHY;
+        GETBITS(i, 1)
+        if(i)
+          ge->flags |= GLOEPHF_ALMANACHEALTHOK;
+        GETBITS(i, 2)
+        if(i & 1)
+          ge->flags |= GLOEPHF_P10TRUE;
+        if(i & 2)
+          ge->flags |= GLOEPHF_P11TRUE;
+        GETBITS(i, 5)
+        ge->tk = i*60*60;
+        GETBITS(i, 6)
+        ge->tk += i*60;
+        GETBITS(i, 1)
+        ge->tk += i*30;
+        GETBITS(i, 1)
+        if(i)
+          ge->flags |= GLOEPHF_UNHEALTHY;
+        GETBITS(i, 1)
+        if(i)
+          ge->flags |= GLOEPHF_P2TRUE;
+        GETBITS(i, 7)
+        ge->tb = i*15*60;
+        GETFLOATSIGNM(ge->x_velocity, 24, 1.0/(double)(1<<20))
+        GETFLOATSIGNM(ge->x_pos, 27, 1.0/(double)(1<<11))
+        GETFLOATSIGNM(ge->x_acceleration, 5, 1.0/(double)(1<<30))
+        GETFLOATSIGNM(ge->y_velocity, 24, 1.0/(double)(1<<20))
+        GETFLOATSIGNM(ge->y_pos, 27, 1.0/(double)(1<<11))
+        GETFLOATSIGNM(ge->y_acceleration, 5, 1.0/(double)(1<<30))
+        GETFLOATSIGNM(ge->z_velocity, 24, 1.0/(double)(1<<20))
+        GETFLOATSIGNM(ge->z_pos, 27, 1.0/(double)(1<<11))
+        GETFLOATSIGNM(ge->z_acceleration, 5, 1.0/(double)(1<<30))
+        GETBITS(i, 1)
+        if(i)
+          ge->flags |= GLOEPHF_P3TRUE;
+        GETFLOATSIGNM(ge->gamma, 11, 1.0/(double)(1<<30)/(double)(1<<10))
+        SKIPBITS(3) /* GLONASS-M P, GLONASS-M ln (third string) */
+        GETFLOATSIGNM(ge->tau, 22, 1.0/(double)(1<<30)) /* GLONASS tau n(tb) */
+        SKIPBITS(5) /* GLONASS-M delta tau n(tb) */
+        GETBITS(ge->E, 5)
+        /* GETBITS(b, 1) / * GLONASS-M P4 */
+        /* GETBITS(b, 4) / * GLONASS-M Ft */
+        /* GETBITS(b, 11) / * GLONASS-M Nt */
+        /* GETBITS(b, 2) / * GLONASS-M M */
+        /* GETBITS(b, 1) / * GLONASS-M The Availability of Additional Data */
+        /* GETBITS(b, 11) / * GLONASS-M Na */
+        /* GETFLOATSIGNM(b, 32, 1.0/(double)(1<<30)/(double)(1<<1)) / * GLONASS tau c */
+        /* GETBITS(b, 5) / * GLONASS-M N4 */
+        /* GETFLOATSIGNM(b, 22, 1.0/(double)(1<<30)/(double)(1<<1)) / * GLONASS-M tau GPS */
+        /* GETBITS(b, 1) / * GLONASS-M ln (fifth string) */
+        ge->GPSWeek = handle->GPSWeek;
+        ge->GPSTOW = handle->GPSTOW;
+        ret = 1020;
+      }
+      break;
     case 1001: case 1002: case 1003: case 1004:
       if(handle->GPSWeek)
       {
@@ -428,7 +579,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         SKIPBITS(12) /* id */;
         GETBITS(i,27) /* tk */
 
-        updatetime(&handle->GPSWeek, &handle->GPSTOW, i);
+        updatetime(&handle->GPSWeek, &handle->GPSTOW, i, 0);
         i = handle->GPSTOW*1000;
         if(gnss->week && (gnss->timeofweek != i || gnss->week
         != handle->GPSWeek))
@@ -596,6 +747,9 @@ struct Header
   const char *antennaposition;
   const char *wavelength;
   const char *typesofobs; /* should not be modified outside */
+  const char *typesofobsG; /* should not be modified outside */
+  const char *typesofobsR; /* should not be modified outside */
+  const char *typesofobsS; /* should not be modified outside */
   const char *timeoffirstobs; /* should not be modified outside */
 };
 
@@ -658,6 +812,34 @@ void RTCM3Text(const char *fmt, ...)
   va_end(v);
 }
 
+static int HandleRunBy(char *buffer, int buffersize, const char **u)
+{
+  const char *user;
+  time_t t;
+  struct tm * t2;
+
+#ifdef NO_RTCM3_MAIN
+  if(revisionstr[0] == '$')
+  {
+    char *a;
+    int i=0;
+    for(a = revisionstr+11; *a && *a != ' '; ++a)
+      revisionstr[i++] = *a;
+    revisionstr[i] = 0;
+  }
+#endif
+
+  user= getenv("USER");
+  if(!user) user = "";
+  t = time(&t);
+  t2 = gmtime(&t);
+  if(u) *u = user;
+  return 1+snprintf(buffer, buffersize,
+  "RTCM3TORINEX %-7.7s%-20.20s%04d-%02d-%02d %02d:%02d    "
+  "PGM / RUN BY / DATE", revisionstr, user, 1900+t2->tm_year,
+  t2->tm_mon+1, t2->tm_mday, t2->tm_hour, t2->tm_min);
+}
+
 #define NUMSTARTSKIP 3
 void HandleHeader(struct RTCM3ParserData *Parser)
 {
@@ -667,38 +849,17 @@ void HandleHeader(struct RTCM3ParserData *Parser)
   size_t buffersize = sizeof(thebuffer);
   int i;
 
-  hdata.data.named.version =
-  "     2.11           OBSERVATION DATA    M (Mixed)"
-  "           RINEX VERSION / TYPE";
+  hdata.data.named.version = buffer;
+  i = 1+snprintf(buffer, buffersize,
+  "%9.2f           OBSERVATION DATA    M (Mixed)"
+  "           RINEX VERSION / TYPE", Parser->rinex3 ? 3.0 : 2.11);
+  buffer += i; buffersize -= i;
 
   {
     const char *str;
-    time_t t;
-    struct tm * t2;
-
-#ifdef NO_RTCM3_MAIN
-    if(revisionstr[0] == '$')
-    {
-      char *a;
-      int i=0;
-      for(a = revisionstr+11; *a && *a != ' '; ++a)
-        revisionstr[i++] = *a;
-      revisionstr[i] = 0;
-    }
-#endif
-
-    str = getenv("USER");
-    if(!str) str = "";
-    t = time(&t);
-    t2 = gmtime(&t);
     hdata.data.named.pgm = buffer;
-    i = 1+snprintf(buffer, buffersize,
-    "RTCM3TORINEX %-7.7s%-20.20s%04d-%02d-%02d %02d:%02d    "
-    "PGM / RUN BY / DATE",
-    revisionstr, str, 1900+t2->tm_year, t2->tm_mon+1, t2->tm_mday, t2->tm_hour,
-    t2->tm_min);
+    i = HandleRunBy(buffer, buffersize, &str);
     buffer += i; buffersize -= i;
-
     hdata.data.named.observer = buffer;
     i = 1+snprintf(buffer, buffersize,
     "%-20.20s                                        "
@@ -726,24 +887,105 @@ void HandleHeader(struct RTCM3ParserData *Parser)
   "         .0000         .0000         .0000                  "
   "ANTENNA: DELTA H/E/N";
   
-  hdata.data.named.wavelength =
+  hdata.data.named.wavelength = Parser->rinex3 ? 0 :
   "     1     1                                                "
   "WAVELENGTH FACT L1/2";
 
+  if(Parser->rinex3)
+  {
+#define CHECKFLAGSNEW(a, b, c) \
+    if(flags & GNSSDF_##b##DATA) \
+    { \
+      Parser->dataflag##a[Parser->numdatatypes##a] = GNSSDF_##b##DATA; \
+      Parser->datapos##a[Parser->numdatatypes##a] = GNSSENTRY_##b##DATA; \
+      ++Parser->numdatatypes##a; \
+      snprintf(tbuffer+tbufferpos, sizeof(tbuffer)-tbufferpos, " "#c); \
+      tbufferpos += 4; \
+    }
+
+    int flags = Parser->startflags;
+    char tbuffer[6*RINEXENTRY_NUMBER+1];
+    int tbufferpos = 0;
+    for(i = 0; i < Parser->Data.numsats; ++i)
+      flags |= Parser->Data.dataflags[i];
+
+    CHECKFLAGSNEW(GPS, C1,  C1C)
+    CHECKFLAGSNEW(GPS, L1C, L1C)
+    CHECKFLAGSNEW(GPS, D1C, D1C)
+    CHECKFLAGSNEW(GPS, S1C, S1C)
+    CHECKFLAGSNEW(GPS, P1,  C1P)
+    CHECKFLAGSNEW(GPS, L1P, L1P)
+    CHECKFLAGSNEW(GPS, D1P, D1P)
+    CHECKFLAGSNEW(GPS, S1P, S1P)
+
+    hdata.data.named.typesofobsS = buffer;
+    i = 1+snprintf(buffer, buffersize,
+    "S  %3d%-52.52s  SYS / # / OBS TYPES", Parser->numdatatypesGPS, tbuffer);
+    buffer += i; buffersize -= i;
+
+    CHECKFLAGSNEW(GPS, P2,  C2P)
+    CHECKFLAGSNEW(GPS, L2P, L2P)
+    CHECKFLAGSNEW(GPS, D2P, D2P)
+    CHECKFLAGSNEW(GPS, S2P, S2P)
+    CHECKFLAGSNEW(GPS, C2,  C2X)
+    CHECKFLAGSNEW(GPS, L2C, L2X)
+    CHECKFLAGSNEW(GPS, D2C, D2X)
+    CHECKFLAGSNEW(GPS, S2C, S2X)
+
+    hdata.data.named.typesofobsG = buffer;
+    i = 1+snprintf(buffer, buffersize,
+    "G  %3d%-52.52s  SYS / # / OBS TYPES", Parser->numdatatypesGPS, tbuffer);
+    if(Parser->numdatatypesGPS>13)
+    {
+      i += snprintf(buffer+i-1, buffersize,
+      "\n      %-52.52s  SYS / # / OBS TYPES", tbuffer+13*4);
+    }
+    buffer += i; buffersize -= i;
+
+    tbufferpos = 0;
+
+    CHECKFLAGSNEW(GLO, C1,  C1C)
+    CHECKFLAGSNEW(GLO, L1C, L1C)
+    CHECKFLAGSNEW(GLO, D1C, D1C)
+    CHECKFLAGSNEW(GLO, S1C, S1C)
+    CHECKFLAGSNEW(GLO, P1,  C1P)
+    CHECKFLAGSNEW(GLO, L1P, L1P)
+    CHECKFLAGSNEW(GLO, D1P, D1P)
+    CHECKFLAGSNEW(GLO, S1P, S1P)
+    CHECKFLAGSNEW(GLO, P2,  C2P)
+    CHECKFLAGSNEW(GLO, L2P, L2P)
+    CHECKFLAGSNEW(GLO, D2P, D2P)
+    CHECKFLAGSNEW(GLO, S2P, S2P)
+    CHECKFLAGSNEW(GLO, C2,  C2C)
+    CHECKFLAGSNEW(GLO, L2C, L2C)
+    CHECKFLAGSNEW(GLO, D2C, D2C)
+    CHECKFLAGSNEW(GLO, S2C, S2C)
+
+    hdata.data.named.typesofobsR = buffer;
+    i = 1+snprintf(buffer, buffersize,
+    "R  %3d%-52.52s  SYS / # / OBS TYPES", Parser->numdatatypesGLO, tbuffer);
+    if(Parser->numdatatypesGLO>13)
+    {
+      i += snprintf(buffer+i-1, buffersize,
+      "\n      %-52.52s  SYS / # / OBS TYPES", tbuffer+13*4);
+    }
+    buffer += i; buffersize -= i;
+  }
+  else
   {
 #define CHECKFLAGS(a, b) \
     if(flags & GNSSDF_##a##DATA) \
     { \
       if(data[RINEXENTRY_##b##DATA]) \
       { \
-        Parser->dataflag2[data[RINEXENTRY_##b##DATA]-1] = GNSSDF_##a##DATA; \
-        Parser->datapos2[data[RINEXENTRY_##b##DATA]-1] = GNSSENTRY_##a##DATA; \
+        Parser->dataflagGPS[data[RINEXENTRY_##b##DATA]-1] = GNSSDF_##a##DATA; \
+        Parser->dataposGPS[data[RINEXENTRY_##b##DATA]-1] = GNSSENTRY_##a##DATA; \
       } \
       else \
       { \
-        Parser->dataflag[Parser->numdatatypes] = GNSSDF_##a##DATA; \
-        Parser->datapos[Parser->numdatatypes] = GNSSENTRY_##a##DATA; \
-        data[RINEXENTRY_##b##DATA] = ++Parser->numdatatypes; \
+        Parser->dataflag[Parser->numdatatypesGPS] = GNSSDF_##a##DATA; \
+        Parser->datapos[Parser->numdatatypesGPS] = GNSSENTRY_##a##DATA; \
+        data[RINEXENTRY_##b##DATA] = ++Parser->numdatatypesGPS; \
         snprintf(tbuffer+tbufferpos, sizeof(tbuffer)-tbufferpos, "    "#b); \
         tbufferpos += 6; \
       } \
@@ -777,8 +1019,8 @@ void HandleHeader(struct RTCM3ParserData *Parser)
 
     hdata.data.named.typesofobs = buffer;
     i = 1+snprintf(buffer, buffersize,
-    "%6i%-54.54s# / TYPES OF OBSERV", Parser->numdatatypes, tbuffer);
-    if(Parser->numdatatypes>9)
+    "%6d%-54.54s# / TYPES OF OBSERV", Parser->numdatatypesGPS, tbuffer);
+    if(Parser->numdatatypesGPS>9)
     {
       i += snprintf(buffer+i-1, buffersize,
       "\n      %-54.54s# / TYPES OF OBSERV", tbuffer+9*6);
@@ -791,7 +1033,7 @@ void HandleHeader(struct RTCM3ParserData *Parser)
     converttime(&cti, Parser->Data.week,
     (int)floor(Parser->Data.timeofweek/1000.0));
     hdata.data.named.timeoffirstobs = buffer;
-      i = 1+snprintf(buffer, buffersize,
+    i = 1+snprintf(buffer, buffersize,
     "  %4d    %2d    %2d    %2d    %2d   %10.7f     GPS         "
     "TIME OF FIRST OBS", cti.year, cti.month, cti.day, cti.hour,
     cti.minute, cti.second + fmod(Parser->Data.timeofweek/1000.0,1.0));
@@ -799,7 +1041,7 @@ void HandleHeader(struct RTCM3ParserData *Parser)
     buffer += i; buffersize -= i;
   }
 
-  hdata.numheaders = 11;
+  hdata.numheaders = 14;
 
   if(Parser->headerfile)
   {
@@ -887,10 +1129,27 @@ void HandleHeader(struct RTCM3ParserData *Parser)
 
 #ifndef NO_RTCM3_MAIN
   for(i = 0; i < hdata.numheaders; ++i)
-    RTCM3Text("%s\n", hdata.data.unnamed[i]);
+  {
+    if(hdata.data.unnamed[i] && hdata.data.unnamed[i][0])
+      RTCM3Text("%s\n", hdata.data.unnamed[i]);
+  }
   RTCM3Text("                                                            "
   "END OF HEADER\n");
 #endif
+}
+
+static void ConvLine(FILE *file, const char *fmt, ...)
+{
+  char buffer[100], *b;
+  va_list v;
+  va_start(v, fmt);
+  vsnprintf(buffer, sizeof(buffer), fmt, v);
+  for(b = buffer; *b; ++b)
+  {
+    if(*b == 'e') *b = 'D';
+  }
+  fprintf(file, "%s", buffer);
+  va_end(v);
 }
 
 void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
@@ -901,121 +1160,363 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
     int r;
     while((r = RTCM3Parser(Parser)))
     {
-      int i, j, o;
-      struct converttimeinfo cti;
-
-      if(Parser->init < NUMSTARTSKIP) /* skip first epochs to detect correct data types */
+      if(r == 1020 || r == 1019)
       {
-        ++Parser->init;
+        FILE *file = 0;
 
-        if(Parser->init == NUMSTARTSKIP)
-          HandleHeader(Parser);
+        if(Parser->rinex3 && !(file = Parser->gpsfile))
+        {
+          const char *n = Parser->gpsephemeris ? Parser->gpsephemeris : Parser->glonassephemeris;
+          if(n)
+          {
+            if(!(Parser->gpsfile = fopen(n, "w")))
+            {
+              RTCM3Error("Could not open ephemeris output file.\n");
+            }
+            else
+            {
+              char buffer[100];
+              fprintf(Parser->gpsfile,
+              "%9.2f%11sN: GNSS NAV DATA    M: Mixed%12sRINEX VERSION / TYPE\n", 3.0, "", "");
+              HandleRunBy(buffer, sizeof(buffer), 0);
+              fprintf(Parser->gpsfile, "%s\n%60sEND OF HEADER\n", buffer, "");
+            }
+            Parser->gpsephemeris = 0;
+            Parser->glonassephemeris = 0;
+            file = Parser->gpsfile;
+          }
+        }
         else
         {
+          if(r == 1020)
+          {
+            if(Parser->glonassephemeris)
+            {
+              if(!(Parser->glonassfile = fopen(Parser->glonassephemeris, "w")))
+              {
+                RTCM3Error("Could not open GLONASS ephemeris output file.\n");
+              }
+              else
+              {
+                char buffer[100];
+                fprintf(Parser->glonassfile,
+                "%9.2f%11sG: GLONASS NAV DATA%21sRINEX VERSION / TYPE\n", 2.1, "", "");
+                HandleRunBy(buffer, sizeof(buffer), 0);
+                fprintf(Parser->glonassfile, "%s\n%60sEND OF HEADER\n", buffer, "");
+              }
+              Parser->glonassephemeris = 0;
+            }
+            file = Parser->glonassfile;
+          }
+          else if(r == 1019)
+          {
+            if(Parser->gpsephemeris)
+            {
+              if(!(Parser->gpsfile = fopen(Parser->gpsephemeris, "w")))
+              {
+                RTCM3Error("Could not open GPS ephemeris output file.\n");
+              }
+              else
+              {
+                char buffer[100];
+                fprintf(Parser->gpsfile,
+                "%9.2f%11sN: GPS NAV DATA%25sRINEX VERSION / TYPE\n", 2.1, "", "");
+                HandleRunBy(buffer, sizeof(buffer), 0);
+                fprintf(Parser->gpsfile, "%s\n%60sEND OF HEADER\n", buffer, "");
+              }
+              Parser->gpsephemeris = 0;
+            }
+            file = Parser->gpsfile;
+          }
+        }
+        if(file)
+        {
+          if(r == 1020)
+          {
+            struct glonassephemeris *e = &Parser->ephemerisGLONASS;
+            int w = e->GPSWeek, tow = e->GPSTOW, i;
+            struct converttimeinfo cti;
+
+            updatetime(&w, &tow, e->tb*1000, 1);
+            converttime(&cti, w, tow);
+
+            i = e->tk-3*60*60; if(i < 0) i += 86400;
+
+            if(Parser->rinex3)
+              ConvLine(file, "R%02d %04d %02d %02d %02d %02d %02d%19.12e%19.12e%19.12e\n",
+              e->almanac_number, cti.year, cti.month, cti.day, cti.hour, cti.minute,
+              cti.second, -e->tau, e->gamma, (double) i);
+            else
+              ConvLine(file, "%02d %02d %02d %02d %02d %02d%5.1f%19.12e%19.12e%19.12e\n",
+              e->almanac_number, cti.year%100, cti.month, cti.day, cti.hour, cti.minute,
+              (double) cti.second, -e->tau, e->gamma, (double) i);
+            ConvLine(file, "   %19.12e%19.12e%19.12e%19.12e\n", e->x_pos,
+            e->x_velocity, e->x_acceleration, (e->flags & GLOEPHF_UNHEALTHY) ? 1.0 : 0.0);
+            ConvLine(file, "   %19.12e%19.12e%19.12e%19.12e\n", e->y_pos,
+            e->y_velocity, e->y_acceleration, (double) e->frequency_number);
+            ConvLine(file, "   %19.12e%19.12e%19.12e%19.12e\n", e->z_pos,
+            e->z_velocity, e->z_acceleration, (double) e->E);
+          }
+          else /* if(r == 1019) */
+          {
+            struct gpsephemeris *e = &Parser->ephemerisGPS;
+            double d;                 /* temporary variable */
+            unsigned long int i;       /* temporary variable */
+            struct converttimeinfo cti;
+            converttime(&cti, e->GPSweek, e->TOC);
+
+            if(Parser->rinex3)
+              ConvLine(file, "G%02d %04d %02d %02d %02d %02d %02d%19.12e%19.12e%19.12e\n",
+              e->satellite, cti.year, cti.month, cti.day, cti.hour,
+              cti.minute, cti.second, e->clock_bias, e->clock_drift,
+              e->clock_driftrate);
+            else
+              ConvLine(file, "%02d %02d %02d %02d %02d %02d%05.1f%19.12e%19.12e%19.12e\n",
+              e->satellite, cti.year%100, cti.month, cti.day, cti.hour,
+              cti.minute, (double) cti.second, e->clock_bias, e->clock_drift,
+              e->clock_driftrate);
+            ConvLine(file, "   %19.12e%19.12e%19.12e%19.12e\n", (double)e->IODE,
+            e->Crs, e->Delta_n, e->M0);
+            ConvLine(file, "   %19.12e%19.12e%19.12e%19.12e\n", e->Cuc,
+            e->e, e->Cus, e->sqrt_A);
+            ConvLine(file, "   %19.12e%19.12e%19.12e%19.12e\n",
+            (double) e->TOE, e->Cic, e->OMEGA0, e->Cis);
+            ConvLine(file, "   %19.12e%19.12e%19.12e%19.12e\n", e->i0,
+            e->Crc, e->omega, e->OMEGADOT);
+            d = 0;
+            i = e->flags;
+            if(i & GPSEPHF_L2CACODE)
+              d += 2.0;
+            if(i & GPSEPHF_L2PCODE)
+              d += 1.0;
+            ConvLine(file, "   %19.12e%19.12e%19.12e%19.12e\n", e->IDOT, d,
+            (double) e->GPSweek, i & GPSEPHF_L2PCODEDATA ? 1.0 : 0.0);
+            if(e->URAindex <= 6) /* URA index */
+              d = ceil(10.0*pow(2.0, 1.0+((double)e->URAindex)/2.0))/10.0;
+            else
+              d = ceil(10.0*pow(2.0, ((double)e->URAindex)/2.0))/10.0;
+            /* 15 indicates not to use satellite. We can't handle this special
+               case, so we create a high "non"-accuracy value. */
+            ConvLine(file, "   %19.12e%19.12e%19.12e%19.12e\n", d,
+            ((double) e->SVhealth), e->TGD, ((double) e->IODC));
+
+            ConvLine(file, "   %19.12e%19.12e\n", ((double)e->TOW), 0.0);
+            /* TOW */
+          }
+        }
+      }
+      else
+      {
+        int i, j, o;
+        struct converttimeinfo cti;
+
+        if(Parser->init < NUMSTARTSKIP) /* skip first epochs to detect correct data types */
+        {
+          ++Parser->init;
+
+          if(Parser->init == NUMSTARTSKIP)
+            HandleHeader(Parser);
+          else
+          {
+            for(i = 0; i < Parser->Data.numsats; ++i)
+              Parser->startflags |= Parser->Data.dataflags[i];
+            continue;
+          }
+        }
+        if(r == 2 && !Parser->validwarning)
+        {
+          RTCM3Text("No valid RINEX! All values are modulo 299792.458!"
+          "           COMMENT\n");
+          Parser->validwarning = 1;
+        }
+
+        converttime(&cti, Parser->Data.week,
+        (int)floor(Parser->Data.timeofweek/1000.0));
+        if(Parser->rinex3)
+        {
+          RTCM3Text("> %04d %02d %02d %02d %02d%11.7f  0%3d\n",
+          cti.year, cti.month, cti.day, cti.hour, cti.minute, cti.second
+          + fmod(Parser->Data.timeofweek/1000.0,1.0), Parser->Data.numsats);
           for(i = 0; i < Parser->Data.numsats; ++i)
-            Parser->startflags |= Parser->Data.dataflags[i];
-          continue;
-        }
-      }
-      if(r == 2 && !Parser->validwarning)
-      {
-        RTCM3Text("No valid RINEX! All values are modulo 299792.458!"
-        "           COMMENT\n");
-        Parser->validwarning = 1;
-      }
-
-      converttime(&cti, Parser->Data.week,
-      (int)floor(Parser->Data.timeofweek/1000.0));
-      RTCM3Text(" %02d %2d %2d %2d %2d %10.7f  0%3d",
-      cti.year%100, cti.month, cti.day, cti.hour, cti.minute, cti.second
-      + fmod(Parser->Data.timeofweek/1000.0,1.0), Parser->Data.numsats);
-      for(i = 0; i < 12 && i < Parser->Data.numsats; ++i)
-      {
-        if(Parser->Data.satellites[i] <= PRN_GPS_END)
-          RTCM3Text("G%02d", Parser->Data.satellites[i]);
-        else if(Parser->Data.satellites[i] >= PRN_GLONASS_START
-        && Parser->Data.satellites[i] <= PRN_GLONASS_END)
-          RTCM3Text("R%02d", Parser->Data.satellites[i] - (PRN_GLONASS_START-1));
-        else if(Parser->Data.satellites[i] >= PRN_WAAS_START
-        && Parser->Data.satellites[i] <= PRN_WAAS_END)
-          RTCM3Text("S%02d", Parser->Data.satellites[i] - PRN_WAAS_START+20);
-        else
-          RTCM3Text("%3d", Parser->Data.satellites[i]);
-      }
-      RTCM3Text("\n");
-      o = 12;
-      j = Parser->Data.numsats - 12;
-      while(j > 0)
-      {
-        RTCM3Text("                                ");
-        for(i = o; i < o+12 && i < Parser->Data.numsats; ++i)
-        {
-          if(Parser->Data.satellites[i] <= PRN_GPS_END)
-            RTCM3Text("G%02d", Parser->Data.satellites[i]);
-          else if(Parser->Data.satellites[i] >= PRN_GLONASS_START
-          && Parser->Data.satellites[i] <= PRN_GLONASS_END)
-            RTCM3Text("R%02d", Parser->Data.satellites[i] - (PRN_GLONASS_START-1));
-          else if(Parser->Data.satellites[i] >= PRN_WAAS_START
-          && Parser->Data.satellites[i] <= PRN_WAAS_END)
-            RTCM3Text("S%02d", Parser->Data.satellites[i] - PRN_WAAS_START+20);
-          else
-            RTCM3Text("%3d", Parser->Data.satellites[i]);
-        }
-        RTCM3Text("\n");
-        j -= 12;
-        o += 12;
-      }
-      for(i = 0; i < Parser->Data.numsats; ++i)
-      {
-        for(j = 0; j < Parser->numdatatypes; ++j)
-        {
-          int v = 0;
-          int df = Parser->dataflag[j];
-          int pos = Parser->datapos[j];
-          if((Parser->Data.dataflags[i] & df)
-          && !isnan(Parser->Data.measdata[i][pos])
-          && !isinf(Parser->Data.measdata[i][pos]))
           {
-            v = 1;
-          }
-          else
-          {
-            df = Parser->dataflag2[j];
-            pos = Parser->datapos2[j];
+            int glo = 0;
+            if(Parser->Data.satellites[i] <= PRN_GPS_END)
+              RTCM3Text("G%02d", Parser->Data.satellites[i]);
+            else if(Parser->Data.satellites[i] >= PRN_GLONASS_START
+            && Parser->Data.satellites[i] <= PRN_GLONASS_END)
+            {
+              RTCM3Text("R%02d", Parser->Data.satellites[i] - (PRN_GLONASS_START-1));
+              glo = 1;
+            }
+            else if(Parser->Data.satellites[i] >= PRN_WAAS_START
+            && Parser->Data.satellites[i] <= PRN_WAAS_END)
+              RTCM3Text("S%02d", Parser->Data.satellites[i] - PRN_WAAS_START+20);
+            else
+              RTCM3Text("%3d", Parser->Data.satellites[i]);
 
-            if((Parser->Data.dataflags[i] & df)
-            && !isnan(Parser->Data.measdata[i][pos])
-            && !isinf(Parser->Data.measdata[i][pos]))
+            if(glo)
             {
-              v = 1;
+              for(j = 0; j < Parser->numdatatypesGLO; ++j)
+              {
+                int df = Parser->dataflagGLO[j];
+                int pos = Parser->dataposGLO[j];
+                if((Parser->Data.dataflags[i] & df)
+                && !isnan(Parser->Data.measdata[i][pos])
+                && !isinf(Parser->Data.measdata[i][pos]))
+                {
+                  char lli = ' ';
+                  char snr = ' ';
+                  if(df & (GNSSDF_L1CDATA|GNSSDF_L1PDATA))
+                  {
+                    if(Parser->Data.dataflags[i] & GNSSDF_LOCKLOSSL1)
+                      lli = '1';
+                    snr = '0'+Parser->Data.snrL1[i];
+                  }
+                  if(df & (GNSSDF_L2CDATA|GNSSDF_L2PDATA))
+                  {
+                    if(Parser->Data.dataflags[i] & GNSSDF_LOCKLOSSL2)
+                      lli = '1';
+                    snr = '0'+Parser->Data.snrL2[i];
+                  }
+                  RTCM3Text("%14.3f%c%c",
+                  Parser->Data.measdata[i][pos],lli,snr);
+                }
+                else
+                { /* no or illegal data */
+                  RTCM3Text("                ");
+                }
+              }
             }
-          }
-
-          if(!v)
-          { /* no or illegal data */
-            RTCM3Text("                ");
-          }
-          else
-          {
-            char lli = ' ';
-            char snr = ' ';
-            if(df & (GNSSDF_L1CDATA|GNSSDF_L1PDATA))
+            else
             {
-              if(Parser->Data.dataflags[i] & GNSSDF_LOCKLOSSL1)
-                lli = '1';
-              snr = '0'+Parser->Data.snrL1[i];
+              for(j = 0; j < Parser->numdatatypesGPS; ++j)
+              {
+                int df = Parser->dataflagGPS[j];
+                int pos = Parser->dataposGPS[j];
+                if((Parser->Data.dataflags[i] & df)
+                && !isnan(Parser->Data.measdata[i][pos])
+                && !isinf(Parser->Data.measdata[i][pos]))
+                {
+                  char lli = ' ';
+                  char snr = ' ';
+                  if(df & (GNSSDF_L1CDATA|GNSSDF_L1PDATA))
+                  {
+                    if(Parser->Data.dataflags[i] & GNSSDF_LOCKLOSSL1)
+                      lli = '1';
+                    snr = '0'+Parser->Data.snrL1[i];
+                  }
+                  if(df & (GNSSDF_L2CDATA|GNSSDF_L2PDATA))
+                  {
+                    if(Parser->Data.dataflags[i] & GNSSDF_LOCKLOSSL2)
+                      lli = '1';
+                    snr = '0'+Parser->Data.snrL2[i];
+                  }
+                  RTCM3Text("%14.3f%c%c",
+                  Parser->Data.measdata[i][pos],lli,snr);
+                }
+                else
+                { /* no or illegal data */
+                  RTCM3Text("                ");
+                }
+              }
             }
-            if(df & (GNSSDF_L2CDATA|GNSSDF_L2PDATA))
-            {
-              if(Parser->Data.dataflags[i] & GNSSDF_LOCKLOSSL2)
-                lli = '1';
-              snr = '0'+Parser->Data.snrL2[i];
-            }
-            RTCM3Text("%14.3f%c%c",
-            Parser->Data.measdata[i][pos],lli,snr);
-          }
-          if(j%5 == 4 || j == Parser->numdatatypes-1)
             RTCM3Text("\n");
+          }
+        }
+        else
+        {
+          RTCM3Text(" %02d %2d %2d %2d %2d %10.7f  0%3d",
+          cti.year%100, cti.month, cti.day, cti.hour, cti.minute, cti.second
+          + fmod(Parser->Data.timeofweek/1000.0,1.0), Parser->Data.numsats);
+          for(i = 0; i < 12 && i < Parser->Data.numsats; ++i)
+          {
+            if(Parser->Data.satellites[i] <= PRN_GPS_END)
+              RTCM3Text("G%02d", Parser->Data.satellites[i]);
+            else if(Parser->Data.satellites[i] >= PRN_GLONASS_START
+            && Parser->Data.satellites[i] <= PRN_GLONASS_END)
+              RTCM3Text("R%02d", Parser->Data.satellites[i] - (PRN_GLONASS_START-1));
+            else if(Parser->Data.satellites[i] >= PRN_WAAS_START
+            && Parser->Data.satellites[i] <= PRN_WAAS_END)
+              RTCM3Text("S%02d", Parser->Data.satellites[i] - PRN_WAAS_START+20);
+            else
+              RTCM3Text("%3d", Parser->Data.satellites[i]);
+          }
+          RTCM3Text("\n");
+          o = 12;
+          j = Parser->Data.numsats - 12;
+          while(j > 0)
+          {
+            RTCM3Text("                                ");
+            for(i = o; i < o+12 && i < Parser->Data.numsats; ++i)
+            {
+              if(Parser->Data.satellites[i] <= PRN_GPS_END)
+                RTCM3Text("G%02d", Parser->Data.satellites[i]);
+              else if(Parser->Data.satellites[i] >= PRN_GLONASS_START
+              && Parser->Data.satellites[i] <= PRN_GLONASS_END)
+                RTCM3Text("R%02d", Parser->Data.satellites[i] - (PRN_GLONASS_START-1));
+              else if(Parser->Data.satellites[i] >= PRN_WAAS_START
+              && Parser->Data.satellites[i] <= PRN_WAAS_END)
+                RTCM3Text("S%02d", Parser->Data.satellites[i] - PRN_WAAS_START+20);
+              else
+                RTCM3Text("%3d", Parser->Data.satellites[i]);
+            }
+            RTCM3Text("\n");
+            j -= 12;
+            o += 12;
+          }
+          for(i = 0; i < Parser->Data.numsats; ++i)
+          {
+            for(j = 0; j < Parser->numdatatypesGPS; ++j)
+            {
+              int v = 0;
+              int df = Parser->dataflag[j];
+              int pos = Parser->datapos[j];
+              if((Parser->Data.dataflags[i] & df)
+              && !isnan(Parser->Data.measdata[i][pos])
+              && !isinf(Parser->Data.measdata[i][pos]))
+              {
+                v = 1;
+              }
+              else
+              {
+                df = Parser->dataflagGPS[j];
+                pos = Parser->dataposGPS[j];
+
+                if((Parser->Data.dataflags[i] & df)
+                && !isnan(Parser->Data.measdata[i][pos])
+                && !isinf(Parser->Data.measdata[i][pos]))
+                {
+                  v = 1;
+                }
+              }
+
+              if(!v)
+              { /* no or illegal data */
+                RTCM3Text("                ");
+              }
+              else
+              {
+                char lli = ' ';
+                char snr = ' ';
+                if(df & (GNSSDF_L1CDATA|GNSSDF_L1PDATA))
+                {
+                  if(Parser->Data.dataflags[i] & GNSSDF_LOCKLOSSL1)
+                    lli = '1';
+                  snr = '0'+Parser->Data.snrL1[i];
+                }
+                if(df & (GNSSDF_L2CDATA|GNSSDF_L2PDATA))
+                {
+                  if(Parser->Data.dataflags[i] & GNSSDF_LOCKLOSSL2)
+                    lli = '1';
+                  snr = '0'+Parser->Data.snrL2[i];
+                }
+                RTCM3Text("%14.3f%c%c",
+                Parser->Data.measdata[i][pos],lli,snr);
+              }
+              if(j%5 == 4 || j == Parser->numdatatypesGPS-1)
+                RTCM3Text("\n");
+            }
+          }
         }
       }
     }
@@ -1023,7 +1524,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
 }
 
 #ifndef NO_RTCM3_MAIN
-static char datestr[]     = "$Date: 2007/08/14 10:14:37 $";
+static char datestr[]     = "$Date: 2007/10/01 11:07:08 $";
 
 /* The string, which is send as agent in HTTP request */
 #define AGENTSTRING "NTRIP NtripRTCM3ToRINEX"
@@ -1084,12 +1585,19 @@ static int stop = 0;
 struct Args
 {
   const char *server;
-  int         port;
+  const char *port;
+  int         mode;
   int         timeout;
+  int         rinex3;
   const char *user;
   const char *password;
+  const char *proxyhost;
+  const char *proxyport;
+  const char *nmea;
   const char *data;
   const char *headerfile;
+  const char *gpsephemeris;
+  const char *glonassephemeris;
 };
 
 /* option parsing */
@@ -1098,17 +1606,26 @@ struct Args
 #else
 #define LONG_OPT(a) a
 static struct option opts[] = {
-{ "data",       required_argument, 0, 'd'},
-{ "server",     required_argument, 0, 's'},
-{ "password",   required_argument, 0, 'p'},
-{ "port",       required_argument, 0, 'r'},
-{ "timeout",    required_argument, 0, 't'},
-{ "header",     required_argument, 0, 'f'},
-{ "user",       required_argument, 0, 'u'},
-{ "help",       no_argument,       0, 'h'},
+{ "data",             required_argument, 0, 'd'},
+{ "server",           required_argument, 0, 's'},
+{ "password",         required_argument, 0, 'p'},
+{ "port",             required_argument, 0, 'r'},
+{ "timeout",          required_argument, 0, 't'},
+{ "header",           required_argument, 0, 'f'},
+{ "user",             required_argument, 0, 'u'},
+{ "gpsephemeris",     required_argument, 0, 'E'},
+{ "glonassephemeris", required_argument, 0, 'G'},
+{ "rinex3",           no_argument,       0, '3'},
+{ "proxyport",        required_argument, 0, 'R'},
+{ "proxyhost",        required_argument, 0, 'S'},
+{ "nmea",             required_argument, 0, 'n'},
+{ "mode",             required_argument, 0, 'M'},
+{ "help",             no_argument,       0, 'h'},
 {0,0,0,0}};
 #endif
-#define ARGOPT "-d:s:p:r:t:f:u:h"
+#define ARGOPT "-d:s:p:r:t:f:u:E:G:M:S:R:n:h3"
+
+enum MODE { HTTP = 1, RTSP = 2, NTRIP1 = 3, AUTO = 4, END };
 
 static const char *geturl(const char *url, struct Args *args)
 {
@@ -1124,7 +1641,7 @@ static const char *geturl(const char *url, struct Args *args)
   {
     /* scan for mountpoint */
     args->data = Buffer;
-    while(*url && *url != '@' && *url != '/' && Buffer != Bufend)
+    while(*url && *url != '@' &&  *url != ';' &&*url != '/' && Buffer != Bufend)
       *(Buffer++) = *(url++);
     if(Buffer == args->data)
       return "Mountpoint required.";
@@ -1137,7 +1654,7 @@ static const char *geturl(const char *url, struct Args *args)
   {
     ++url;
     args->user = Buffer;
-    while(*url && *url != '@' && *url != ':' && Buffer != Bufend)
+    while(*url && *url != '@' && *url != ';' && *url != ':' && Buffer != Bufend)
       *(Buffer++) = *(url++);
     if(Buffer == args->user)
       return "Username cannot be empty.";
@@ -1148,7 +1665,7 @@ static const char *geturl(const char *url, struct Args *args)
     if(*url == ':') ++url;
 
     args->password = Buffer;
-    while(*url && *url != '@' && Buffer != Bufend)
+    while(*url && *url != '@' && *url != ';' && Buffer != Bufend)
       *(Buffer++) = *(url++);
     if(Buffer == args->password)
       return "Password cannot be empty.";
@@ -1160,23 +1677,62 @@ static const char *geturl(const char *url, struct Args *args)
   if(*url == '@') /* server */
   {
     ++url;
-    args->server = Buffer;
-    while(*url && *url != ':' && Buffer != Bufend)
-      *(Buffer++) = *(url++);
-    if(Buffer == args->server)
-      return "Servername cannot be empty.";
-    else if(Buffer >= Bufend-1)
-      return "Parsing buffer too short.";
-    *(Buffer++) = 0;
+    if(*url != '@' && *url != ':')
+    {
+      args->server = Buffer;
+      while(*url && *url != '@' && *url != ':' && *url != ';' && Buffer != Bufend)
+        *(Buffer++) = *(url++);
+      if(Buffer == args->server)
+        return "Servername cannot be empty.";
+      else if(Buffer >= Bufend-1)
+        return "Parsing buffer too short.";
+      *(Buffer++) = 0;
+    }
 
     if(*url == ':')
     {
-      char *s2 = 0;
-      args->port = strtol(++url, &s2, 10);
-      if(*s2 || args->port <= 0 || args->port > 0xFFFF)
-        return "Illegal port number.";
-      url = s2;
+      ++url;
+      args->port = Buffer;
+      while(*url && *url != '@' && *url != ';' && Buffer != Bufend)
+        *(Buffer++) = *(url++);
+      if(Buffer == args->port)
+        return "Port cannot be empty.";
+      else if(Buffer >= Bufend-1)
+        return "Parsing buffer too short.";
+      *(Buffer++) = 0;
     }
+
+    if(*url == '@') /* proxy */
+    {
+      ++url;
+      args->proxyhost = Buffer;
+      while(*url && *url != ':' && *url != ';' && Buffer != Bufend)
+        *(Buffer++) = *(url++);
+      if(Buffer == args->proxyhost)
+        return "Proxy servername cannot be empty.";
+      else if(Buffer >= Bufend-1)
+        return "Parsing buffer too short.";
+      *(Buffer++) = 0;
+
+      if(*url == ':')
+      {
+        ++url;
+        args->proxyport = Buffer;
+        while(*url && *url != ';' && Buffer != Bufend)
+          *(Buffer++) = *(url++);
+        if(Buffer == args->proxyport)
+          return "Proxy port cannot be empty.";
+        else if(Buffer >= Bufend-1)
+          return "Parsing buffer too short.";
+        *(Buffer++) = 0;
+      }
+    }
+  }
+  if(*url == ';') /* NMEA */
+  {
+    args->nmea = ++url;
+    while(*url)
+      ++url;
   }
 
   return *url ? "Garbage at end of server string." : 0;
@@ -1190,12 +1746,19 @@ static int getargs(int argc, char **argv, struct Args *args)
   char *t;
 
   args->server = "www.euref-ip.net";
-  args->port = 2101;
+  args->port = "2101";
   args->timeout = 60;
   args->user = "";
   args->password = "";
   args->data = 0;
   args->headerfile = 0;
+  args->gpsephemeris = 0;
+  args->glonassephemeris = 0;
+  args->rinex3 = 0;
+  args->nmea = 0;
+  args->proxyhost = 0;
+  args->proxyport = "2101";
+  args->mode = AUTO;
   help = 0;
 
   do
@@ -1212,13 +1775,32 @@ static int getargs(int argc, char **argv, struct Args *args)
     case 'p': args->password = optarg; break;
     case 'd': args->data = optarg; break;
     case 'f': args->headerfile = optarg; break;
+    case 'E': args->gpsephemeris = optarg; break;
+    case 'G': args->glonassephemeris = optarg; break;
+    case 'r': args->port = optarg; break;
+    case '3': args->rinex3 = 1; break;
+    case 'S': args->proxyhost = optarg; break;
+    case 'n': args->nmea = optarg; break;
+    case 'R': args->proxyport = optarg; break;
     case 'h': help=1; break;
-    case 'r': 
-      args->port = strtoul(optarg, &t, 10);
-      if((t && *t) || args->port < 1 || args->port > 65535)
+    case 'M':
+      args->mode = 0;
+      if (!strcmp(optarg,"n") || !strcmp(optarg,"ntrip1"))
+        args->mode = NTRIP1;
+      else if(!strcmp(optarg,"h") || !strcmp(optarg,"http"))
+        args->mode = HTTP;
+      else if(!strcmp(optarg,"r") || !strcmp(optarg,"rtsp"))
+        args->mode = RTSP;
+      else if(!strcmp(optarg,"a") || !strcmp(optarg,"auto"))
+        args->mode = AUTO;
+      else args->mode = atoi(optarg);
+      if((args->mode == 0) || (args->mode >= END))
+      {
+        fprintf(stderr, "Mode %s unknown\n", optarg);
         res = 0;
+      }
       break;
-    case 't': 
+    case 't':
       args->timeout = strtoul(optarg, &t, 10);
       if((t && *t) || args->timeout < 0)
         res = 0;
@@ -1249,18 +1831,35 @@ static int getargs(int argc, char **argv, struct Args *args)
   datestr[4] = datestr[7] = '-';
   datestr[10] = 0;
 
-  if(!res || help)
+  if(args->gpsephemeris && args->glonassephemeris && args->rinex3)
+  {
+    RTCM3Error("RINEX3 produces a combined ephemeris file, but 2 files were specified.\n");
+    res = 0;
+  }
+  else if(!res || help)
   {
     RTCM3Error("Version %s (%s) GPL" COMPILEDATE
     "\nUsage: %s -s server -u user ...\n"
-    " -d " LONG_OPT("--data       ") "the requested data set\n"
-    " -f " LONG_OPT("--headerfile ") "file for RINEX header information\n"
-    " -s " LONG_OPT("--server     ") "the server name or address\n"
-    " -p " LONG_OPT("--password   ") "the login password\n"
-    " -r " LONG_OPT("--port       ") "the server port number (default 2101)\n"
-    " -t " LONG_OPT("--timeout    ") "timeout in seconds (default 60)\n"
-    " -u " LONG_OPT("--user       ") "the user name\n"
-    "or using an URL:\n%s ntrip:mountpoint[/username[:password]][@server[:port]]\n"
+    " -d " LONG_OPT("--data             ") "the requested data set\n"
+    " -f " LONG_OPT("--headerfile       ") "file for RINEX header information\n"
+    " -s " LONG_OPT("--server           ") "the server name or address\n"
+    " -p " LONG_OPT("--password         ") "the login password\n"
+    " -r " LONG_OPT("--port             ") "the server port number (default 2101)\n"
+    " -t " LONG_OPT("--timeout          ") "timeout in seconds (default 60)\n"
+    " -u " LONG_OPT("--user             ") "the user name\n"
+    " -E " LONG_OPT("--gpsephemeris     ") "output file for GPS ephemeris data\n"
+    " -G " LONG_OPT("--glonassephemeris ") "output file for GLONASS ephemeris data\n"
+    " -3 " LONG_OPT("--rinex3           ") "output RINEX type 3 data\n"
+    " -S " LONG_OPT("--proxyhost        ") "proxy name or address\n"
+    " -R " LONG_OPT("--proxyport        ") "proxy port, optional (default 2101)\n"
+    " -n " LONG_OPT("--nmea             ") "NMEA string for sending to server\n"
+    " -M " LONG_OPT("--mode             ") "mode for data request\n"
+    "     Valid modes are:\n"
+    "     1, h, http     NTRIP Version 2.0 Caster in TCP/IP mode\n"
+    "     2, r, rtsp     NTRIP Version 2.0 Caster in RTSP/RTP mode\n"
+    "     3, n, ntrip1   NTRIP Version 1.0 Caster\n"
+    "     4, a, auto     automatic detection (default)\n"
+    "or using an URL:\n%s ntrip:data[/user[:password]][@[server][:port][@proxyhost[:proxyport]]][;nmea]\n"
     , revisionstr, datestr, argv[0], argv[0]);
     exit(1);
   }
@@ -1279,6 +1878,8 @@ static void signalhandler(int sig)
   }
 }
 
+#define ALARMTIME   (2*60)
+
 /* for some reason we had to abort hard (maybe waiting for data */
 #ifdef __GNUC__
 static __attribute__ ((noreturn)) void signalhandler_alarm(
@@ -1295,8 +1896,6 @@ int main(int argc, char **argv)
 {
   struct Args args;
   struct RTCM3ParserData Parser;
-
-  struct timeval tv;
 
   setbuf(stdout, 0);
   setbuf(stdin, 0);
@@ -1325,21 +1924,69 @@ int main(int argc, char **argv)
 
   if(getargs(argc, argv, &args))
   {
-    int i, sockfd, numbytes;  
+    int sockfd, numbytes;  
     char buf[MAXDATASIZE];
-    struct hostent *he;
     struct sockaddr_in their_addr; /* connector's address information */
+    struct hostent *he;
+    struct servent *se;
+    const char *server, *port, *proxyserver = 0;
+    char proxyport[6];
+    char *b;
+    long i;
+    struct timeval tv;
+
+    alarm(ALARMTIME);
 
     Parser.headerfile = args.headerfile;
+    Parser.glonassephemeris = args.glonassephemeris;
+    Parser.gpsephemeris = args.gpsephemeris;
+    Parser.rinex3 = args.rinex3;
 
-    if(!(he=gethostbyname(args.server)))
+    if(args.proxyhost)
     {
-      RTCM3Error("Function gethostbyname: %s\n", strerror(errno));
+      int p;
+      if((i = strtol(args.port, &b, 10)) && (!b || !*b))
+        p = i;
+      else if(!(se = getservbyname(args.port, 0)))
+      {
+        RTCM3Error("Can't resolve port %s.", args.port);
+        exit(1);
+      }
+      else
+      {
+        p = ntohs(se->s_port);
+      }
+      snprintf(proxyport, sizeof(proxyport), "%d", p);
+      port = args.proxyport;
+      proxyserver = args.server;
+      server = args.proxyhost;
+    }
+    else
+    {
+      server = args.server;
+      port = args.port;
+    }
+
+    memset(&their_addr, 0, sizeof(struct sockaddr_in));
+    if((i = strtol(port, &b, 10)) && (!b || !*b))
+      their_addr.sin_port = htons(i);
+    else if(!(se = getservbyname(port, 0)))
+    {
+      RTCM3Error("Can't resolve port %s.", port);
+      exit(1);
+    }
+    else
+    {
+      their_addr.sin_port = se->s_port;
+    }
+    if(!(he=gethostbyname(server)))
+    {
+      RTCM3Error("Server name lookup failed for '%s'.\n", server);
       exit(1);
     }
     if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
     {
-      RTCM3Error("Function socket: %s\n", strerror(errno));
+      perror("socket");
       exit(1);
     }
 
@@ -1351,40 +1998,58 @@ int main(int argc, char **argv)
       exit(1);
     }
 
-    their_addr.sin_family = AF_INET;    /* host byte order */
-    their_addr.sin_port = htons(args.port);  /* short, network byte order */
+    their_addr.sin_family = AF_INET;
     their_addr.sin_addr = *((struct in_addr *)he->h_addr);
-    memset(&(their_addr.sin_zero), '\0', 8);
-    if(connect(sockfd, (struct sockaddr *)&their_addr,
-    sizeof(struct sockaddr)) == -1)
-    {
-      RTCM3Error("Function connect: %s\n", strerror(errno));
-      exit(1);
-    }
 
-    if(!args.data)
+    if(args.data && args.mode == RTSP)
     {
-      i = snprintf(buf, MAXDATASIZE,
-      "GET / HTTP/1.0\r\n"
-      "User-Agent: %s/%s\r\n"
-#ifdef UNUSED
-      "Accept: */*\r\n"
-      "Connection: close\r\n"
-#endif
-      "\r\n"
-      , AGENTSTRING, revisionstr);
-    }
-    else
-    {
+      struct sockaddr_in local;
+      int sockudp, localport;
+      int cseq = 1;
+      socklen_t len;
+
+      if((sockudp = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
+      {
+        perror("socket");
+        exit(1);
+      }
+      /* fill structure with local address information for UDP */
+      memset(&local, 0, sizeof(local));
+      local.sin_family = AF_INET;  	
+      local.sin_port = htons(0);
+      local.sin_addr.s_addr = htonl(INADDR_ANY); 
+      len = sizeof(local);
+      /* bind() in order to get a random RTP client_port */ 
+      if((bind(sockudp, (struct sockaddr *)&local, len)) < 0)
+      {
+        perror("bind");
+        exit(1);
+      }
+      if((getsockname(sockudp, (struct sockaddr*)&local, &len)) != -1) 
+      {
+        localport = ntohs(local.sin_port); 
+      }
+      else
+      {
+        perror("local access failed"); 
+        exit(1);
+      }
+      if(connect(sockfd, (struct sockaddr *)&their_addr,
+      sizeof(struct sockaddr)) == -1)
+      {
+        perror("connect");
+        exit(1);
+      }
       i=snprintf(buf, MAXDATASIZE-40, /* leave some space for login */
-      "GET /%s HTTP/1.0\r\n"
+      "SETUP rtsp://%s%s%s/%s RTSP/1.0\r\n" 	        
+      "CSeq: %d\r\n"		
+      "Ntrip-Version: Ntrip/2.0\r\n"
+      "Ntrip-Component: Ntripclient\r\n"
       "User-Agent: %s/%s\r\n"
-#ifdef UNUSED
-      "Accept: */*\r\n"
-      "Connection: close\r\n"
-#endif
-      "Authorization: Basic "
-      , args.data, AGENTSTRING, revisionstr);
+      "Transport: RTP/GNSS;unicast;client_port=%u\r\n"
+      "Authorization: Basic ",
+      args.server, proxyserver ? ":" : "", proxyserver ? args.port : "",
+      args.data, cseq++, AGENTSTRING, revisionstr, localport);
       if(i > MAXDATASIZE-40 || i < 0) /* second check for old glibc */
       {
         RTCM3Error("Requested data too long\n");
@@ -1400,48 +2065,381 @@ int main(int argc, char **argv)
       buf[i++] = '\n';
       buf[i++] = '\r';
       buf[i++] = '\n';
-    }
-    if(send(sockfd, buf, (size_t)i, 0) != i)
-    {
-      RTCM3Error("Function send: %s\n", strerror(errno));
-      exit(1);
-    }
-    if(args.data)
-    {
-      int k = 0;
-      while(!stop && (numbytes=recv(sockfd, buf, MAXDATASIZE-1, 0)) != -1)
+      if(args.nmea)
       {
-        if(!k)
+        int j = snprintf(buf+i, MAXDATASIZE-i, "%s\r\n", args.nmea);
+        if(j >= 0 && j < MAXDATASIZE-i)
+          i += j;
+        else
         {
-          if(numbytes < 12 || strncmp("ICY 200 OK\r\n", buf, 12))
+          RTCM3Error("NMEA string too long\n");
+          exit(1);
+        }
+      }
+      if(send(sockfd, buf, (size_t)i, 0) != i)
+      {
+        perror("send");
+        exit(1);
+      }
+      if((numbytes=recv(sockfd, buf, MAXDATASIZE-1, 0)) != -1)
+      {
+        if(numbytes >= 17 && !strncmp(buf, "RTSP/1.0 200 OK\r\n", 17))
+	{
+          int serverport = 0, session = 0;
+          const char *portcheck = "server_port=";
+          const char *sessioncheck = "session: ";
+          int l = strlen(portcheck)-1;
+          int j=0;
+          for(i = 0; j != l && i < numbytes-l; ++i)
           {
-            RTCM3Error("Could not get the requested data: ");
-            for(k = 0; k < numbytes && buf[k] != '\n' && buf[k] != '\r'; ++k)
-            {
-              RTCM3Error("%c", isprint(buf[k]) ? buf[k] : '.');
-            }
-            RTCM3Error("\n");
+            for(j = 0; j < l && tolower(buf[i+j]) == portcheck[j]; ++j)
+              ;
+          }
+          if(i == numbytes-l)
+          {
+            RTCM3Error("No server port number found\n");
             exit(1);
           }
-          ++k;
+          else
+          {
+            i+=l;
+            while(i < numbytes && buf[i] >= '0' && buf[i] <= '9')
+              serverport = serverport * 10 + buf[i++]-'0';
+            if(buf[i] != '\r' && buf[i] != ';')
+            {
+              RTCM3Error("Could not extract server port\n");
+              exit(1);
+            }
+          }
+          l = strlen(sessioncheck)-1;
+          j=0;
+          for(i = 0; j != l && i < numbytes-l; ++i)
+          {
+            for(j = 0; j < l && tolower(buf[i+j]) == sessioncheck[j]; ++j)
+              ;
+          }
+          if(i == numbytes-l)
+          {
+            RTCM3Error("No session number found\n");
+            exit(1);
+          }
+          else
+          {
+            i+=l;
+            while(i < numbytes && buf[i] >= '0' && buf[i] <= '9')
+              session = session * 10 + buf[i++]-'0';
+            if(buf[i] != '\r')
+            {
+              RTCM3Error("Could not extract session number\n");
+              exit(1);
+            }
+          }
+
+          i = snprintf(buf, MAXDATASIZE,
+          "PLAY rtsp://%s%s%s/%s RTSP/1.0\r\n"	        
+          "CSeq: %d\r\n"
+          "Session: %d\r\n"
+          "\r\n", 
+          args.server, proxyserver ? ":" : "", proxyserver ? args.port : "",
+          args.data, cseq++, session);
+
+          if(i > MAXDATASIZE || i < 0) /* second check for old glibc */
+          {
+            RTCM3Error("Requested data too long\n");
+            exit(1);
+          }
+          if(send(sockfd, buf, (size_t)i, 0) != i)
+          {
+            perror("send");
+            exit(1);
+          }
+          if((numbytes=recv(sockfd, buf, MAXDATASIZE-1, 0)) != -1)
+          {
+            if(numbytes >= 17 && !strncmp(buf, "RTSP/1.0 200 OK\r\n", 17))
+            {
+              struct sockaddr_in addrRTP;
+              /* fill structure with caster address information for UDP */
+              memset(&addrRTP, 0, sizeof(addrRTP));
+              addrRTP.sin_family = AF_INET;  
+              addrRTP.sin_port   = htons(serverport);
+              their_addr.sin_addr = *((struct in_addr *)he->h_addr);
+              len = sizeof(addrRTP);
+              int ts = 0;
+              int sn = 0;
+              int ssrc = 0;
+              int init = 0;
+              int u, v, w;
+              while(!stop && (i = recvfrom(sockudp, buf, 1526, 0,
+              (struct sockaddr*) &addrRTP, &len)) > 0)
+              {
+                alarm(ALARMTIME);
+                if(i >= 12+1 && (unsigned char)buf[0] == (2 << 6) && buf[1] == 0x60)
+                {
+                  u= ((unsigned char)buf[2]<<8)+(unsigned char)buf[3];
+                  v = ((unsigned char)buf[4]<<24)+((unsigned char)buf[5]<<16)
+                  +((unsigned char)buf[6]<<8)+(unsigned char)buf[7];
+                  w = ((unsigned char)buf[8]<<24)+((unsigned char)buf[9]<<16)
+                  +((unsigned char)buf[10]<<8)+(unsigned char)buf[11];
+
+                  if(init)
+                  {
+                    if(u < -30000 && sn > 30000) sn -= 0xFFFF;
+                    if(ssrc != w || ts > v)
+                    {
+                      RTCM3Error("Illegal UDP data received.\n");
+                      exit(1);
+                    }
+                    if(u > sn) /* don't show out-of-order packets */
+                      fwrite(buf+12, (size_t)i-12, 1, stdout);
+                  }
+                  sn = u; ts = v; ssrc = w; init = 1;
+                }
+                else
+                {
+                  RTCM3Error("Illegal UDP header.\n");
+                  exit(1);
+                }
+              }
+            }
+            i = snprintf(buf, MAXDATASIZE,
+            "TEARDOWN rtsp://%s%s%s/%s RTSP/1.0\r\n"	        
+            "CSeq: %d\r\n"
+            "Session: %d\r\n"
+            "\r\n", 
+            args.server, proxyserver ? ":" : "", proxyserver ? args.port : "",
+            args.data, cseq++, session);
+
+            if(i > MAXDATASIZE || i < 0) /* second check for old glibc */
+            {
+              RTCM3Error("Requested data too long\n");
+              exit(1);
+            }
+            if(send(sockfd, buf, (size_t)i, 0) != i)
+            {
+              perror("send");
+              exit(1);
+            }
+          }
+          else
+          {
+            RTCM3Error("Could not start data stream.\n");
+            exit(1);
+          }
         }
         else
         {
-          int z;
-          for(z = 0; z < numbytes && !stop; ++z)
-            HandleByte(&Parser, (unsigned int) buf[z]);
+          RTCM3Error("Could not setup initial control connection.\n");
+          exit(1);
         }
+      }
+      else
+      {
+        perror("recv");
+        exit(1);
       }
     }
     else
     {
-      while((numbytes=recv(sockfd, buf, MAXDATASIZE-1, 0)) > 0)
+      if(connect(sockfd, (struct sockaddr *)&their_addr,
+      sizeof(struct sockaddr)) == -1)
       {
-        fwrite(buf, (size_t)numbytes, 1, stdout);
+        perror("connect");
+        exit(1);
       }
-    }
+      if(!args.data)
+      {
+        i = snprintf(buf, MAXDATASIZE,
+        "GET %s%s%s%s/ HTTP/1.0\r\n"
+        "Host: %s\r\n%s"
+        "User-Agent: %s/%s\r\n"
+        "\r\n"
+        , proxyserver ? "http://" : "", proxyserver ? proxyserver : "",
+        proxyserver ? ":" : "", proxyserver ? proxyport : "",
+        args.server, args.mode == NTRIP1 ? "" : "Ntrip-Version: Ntrip/2.0\r\n",
+        AGENTSTRING, revisionstr);
+      }
+      else
+      {
+        i=snprintf(buf, MAXDATASIZE-40, /* leave some space for login */
+        "GET %s%s%s%s/%s HTTP/1.0\r\n"
+        "Host: %s\r\n%s"
+        "User-Agent: %s/%s\r\n"
+        "Authorization: Basic "
+        , proxyserver ? "http://" : "", proxyserver ? proxyserver : "",
+        proxyserver ? ":" : "", proxyserver ? proxyport : "",
+        args.data, args.server,
+        args.mode == NTRIP1 ? "" : "Ntrip-Version: Ntrip/2.0\r\n",
+        AGENTSTRING, revisionstr);
+        if(i > MAXDATASIZE-40 || i < 0) /* second check for old glibc */
+        {
+          RTCM3Error("Requested data too long\n");
+          exit(1);
+        }
+        i += encode(buf+i, MAXDATASIZE-i-4, args.user, args.password);
+        if(i > MAXDATASIZE-4)
+        {
+          RTCM3Error("Username and/or password too long\n");
+          exit(1);
+        }
+        buf[i++] = '\r';
+        buf[i++] = '\n';
+        buf[i++] = '\r';
+        buf[i++] = '\n';
+        if(args.nmea)
+        {
+          int j = snprintf(buf+i, MAXDATASIZE-i, "%s\r\n", args.nmea);
+          if(j >= 0 && j < MAXDATASIZE-i)
+            i += j;
+          else
+          {
+            RTCM3Error("NMEA string too long\n");
+            exit(1);
+          }
+        }
+      }
+      if(send(sockfd, buf, (size_t)i, 0) != i)
+      {
+        perror("send");
+        exit(1);
+      }
+      if(args.data)
+      {
+        int k = 0;
+        int chunkymode = 0;
+        int starttime = time(0);
+        int lastout = starttime;
+        int totalbytes = 0;
+        int chunksize = 0;
 
-    close(sockfd);
+        while(!stop && (numbytes=recv(sockfd, buf, MAXDATASIZE-1, 0)) != -1)
+        {
+          alarm(ALARMTIME);
+          if(!k)
+          {
+            if(numbytes > 17 && (!strncmp(buf, "HTTP/1.1 200 OK\r\n", 17)
+            || !strncmp(buf, "HTTP/1.0 200 OK\r\n", 17)))
+	    {
+              const char *datacheck = "Content-Type: gnss/data\r\n";
+              const char *chunkycheck = "Transfer-Encoding: chunked\r\n";
+              int l = strlen(datacheck)-1;
+              int j=0;
+              for(i = 0; j != l && i < numbytes-l; ++i)
+              {
+                for(j = 0; j < l && buf[i+j] == datacheck[j]; ++j)
+                  ;
+              }
+              if(i == numbytes-l)
+              {
+                RTCM3Error("No 'Content-Type: gnss/data' found\n");
+                exit(1);
+              }
+              l = strlen(chunkycheck)-1;
+              j=0;
+              for(i = 0; j != l && i < numbytes-l; ++i)
+              {
+                for(j = 0; j < l && buf[i+j] == chunkycheck[j]; ++j)
+                  ;
+              }
+              if(i < numbytes-l)
+                chunkymode = 1;
+	    }
+            else if(numbytes < 12 || strncmp("ICY 200 OK\r\n", buf, 12))
+            {
+              RTCM3Error("Could not get the requested data: ");
+              for(k = 0; k < numbytes && buf[k] != '\n' && buf[k] != '\r'; ++k)
+              {
+                RTCM3Error("%c", isprint(buf[k]) ? buf[k] : '.');
+              }
+              RTCM3Error("\n");
+              exit(1);
+            }
+            else if(args.mode != NTRIP1)
+            {
+              if(args.mode != AUTO)
+              {
+                RTCM3Error("NTRIP version 2 HTTP connection failed%s.\n",
+                args.mode == AUTO ? ", falling back to NTRIP1" : "");
+              }
+              if(args.mode == HTTP)
+                exit(1);
+            }
+            ++k;
+          }
+          else
+          {
+            if(chunkymode)
+            {
+              int stop = 0;
+              int pos = 0;
+              while(!stop && pos < numbytes)
+              {
+                switch(chunkymode)
+                {
+                case 1: /* reading number starts */
+                  chunksize = 0;
+                  ++chunkymode; /* no break */
+                case 2: /* during reading number */
+                  i = buf[pos++];
+                  if(i >= '0' && i <= '9') chunksize = chunksize*16+i-'0';
+                  else if(i >= 'a' && i <= 'f') chunksize = chunksize*16+i-'a'+10;
+                  else if(i >= 'A' && i <= 'F') chunksize = chunksize*16+i-'A'+10;
+                  else if(i == '\r') ++chunkymode;
+                  else stop = 1;
+                  break;
+                case 3: /* scanning for return */
+                  if(buf[pos++] == '\n') chunkymode = chunksize ? 4 : 1;
+                  else stop = 1;
+                  break;
+                case 4: /* output data */
+                  i = numbytes-pos;
+                  if(i > chunksize) i = chunksize;
+                  {
+                    int z;
+                    for(z = 0; z < i && !stop; ++z)
+                      HandleByte(&Parser, (unsigned int) buf[pos+z]);
+                  }
+                  totalbytes += i;
+                  chunksize -= i;
+                  pos += i;
+                  if(!chunksize)
+                    chunkymode = 1;
+                  break;
+                }
+              }
+              if(stop)
+              {
+                RTCM3Error("Error in chunky transfer encoding\n");
+                break;
+              }
+            }
+            else
+            {
+              totalbytes += numbytes;
+              {
+                int z;
+                for(z = 0; z < numbytes && !stop; ++z)
+                  HandleByte(&Parser, (unsigned int) buf[z]);
+              }
+            }
+            if(totalbytes < 0) /* overflow */
+            {
+              totalbytes = 0;
+              starttime = time(0);
+              lastout = starttime;
+            }
+          }
+        }
+      }
+      else
+      {
+        while(!stop && (numbytes=recv(sockfd, buf, MAXDATASIZE-1, 0)) > 0)
+        {
+          alarm(ALARMTIME);
+          fwrite(buf, (size_t)numbytes, 1, stdout);
+        }
+      }
+      close(sockfd);
+    }
   }
   return 0;
 }

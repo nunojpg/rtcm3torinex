@@ -21,13 +21,13 @@ Type  Contains information about
 1011  GLONASS L1 and L1 code and phase
 1012  GLONASS L1 and L2 code and phase and ambiguities and carrier to noise ratio
 1013  Modified julian date, leep second, configured message types and intervall
-1014-1017 Network RTK (MAK) messages (under development)
-1019  GPS Ephemeris (under development)
-1020  GLONASS Ephemeris (under development)
+1014-1017 Network RTK (MAK) messages
+1019  GPS Ephemeris
+1020  GLONASS Ephemeris
 4088-4095 Proprietary messages (under development)
 
 Note that this version of rtcm3torinex only handles RTCM3 message types 1001,
-1002, 1003, 1004, 1009, 1010, 1011 and 1012.
+1002, 1003, 1004, 1009, 1010, 1011, 1012, 1019 and 1020.
 
 The generated RINEX is somewhat limited due to the streaming character of the
 conversion:
@@ -36,7 +36,7 @@ conversion:
    very first epoch. Data rate, position, number of observations and any such
    additional fields cannot be provided.
  - The number of observables cannot change during the program runtime. Only
-   the observables, which exist in the first epoch are outputted. If there
+   the observables, which exist in the first epoch are output. If there
    are new observables later on, these are ignored.
  - Only known message types are interpreted. This means only GPS data at the
    moment. Send me new RTCM3 data files and data support can be improved.
@@ -47,22 +47,35 @@ conversion:
    calculate the range to fix the ambiguity (needing ephemeris/alamanac and
    easy positioning algorithm).
 
-Usage: rtcm3torinex -s server -u user ...
- -d --data       the requested data set
- -f --headerfile file for RINEX header information
- -s --server     the server name or address
- -p --password   the login password
- -r --port       the server port number (default 80)
- -u --user       the user name
+Usage: ./rtcm3torinex -s server -u user ...
+ -d --data             the requested data set
+ -f --headerfile       file for RINEX header information
+ -s --server           the server name or address
+ -p --password         the login password
+ -r --port             the server port number (default 2101)
+ -t --timeout          timeout in seconds (default 60)
+ -u --user             the user name
+ -E --gpsephemeris     output file for GPS ephemeris data
+ -G --glonassephemeris output file for GLONASS ephemeris data
+ -3 --rinex3           output RINEX type 3 data
+ -S --proxyhost        proxy name or address
+ -R --proxyport        proxy port, optional (default 2101)
+ -n --nmea             NMEA string for sending to server
+ -M --mode             mode for data request
+     Valid modes are:
+     1, h, http     NTRIP Version 2.0 Caster in TCP/IP mode
+     2, r, rtsp     NTRIP Version 2.0 Caster in RTSP/RTP mode
+     3, n, ntrip1   NTRIP Version 1.0 Caster
+     4, a, auto     automatic detection (default)
 
 The fields --user and --password are used to specify the access data for the
 NTRIP server. The arguments --server and --port are used to specify the NTRIP
-server itself (defaults to "www.euref-ip.net" port 80). The Argument --data
+server itself (defaults to "www.euref-ip.net" port 2101). The Argument --data
 must be used to specify the RTCM3 input data stream. If it is not given, you
 will be shown the source table of the selected NTRIP caster.
 
 Alternatively a single text of the form
-"ntrip:mountpoint[/username[:password]][@server[:port]]"
+"ntrip:data[/user[:password]][@[server][:port][@proxyhost[:proxyport]]][;nmea]"
 can be used. Everything in brackets is optional.
 
 Additionally the argument --headerfile can be used to provide additional header
@@ -100,8 +113,8 @@ and is thus not critical. New compilers will not show this problem.
 Program written by
 
 Dirk Stoecker
-Euronik GmbH
-http://www.euronik.eu/
+Alberding GmbH
+http://www.alberding.eu/
 
 for
 
@@ -110,5 +123,5 @@ Richard-Strauss-Allee 11
 D-60598 Frankfurt
 http://igs.bkg.bund.de/index_ntrip.htm
 
-Contact Dirk Stoecker [stoecker@euronik.eu] or [euref-ip@bkg.bund.de]
+Contact Dirk Stoecker [stoecker@alberding.eu] or [euref-ip@bkg.bund.de]
 with your comments, suggestions, improvements, patches, ...
