@@ -38,9 +38,8 @@ conversion:
  - The number of observables cannot change during the program runtime. Only
    the observables, which exist in the first epoch are output. If there
    are new observables later on, these are ignored.
- - Only known message types are interpreted. This means only GPS data at the
-   moment. Send me new RTCM3 data files and data support can be improved.
-   See contact address at the end of this document.
+ - Only known message types are interpreted. Send me new RTCM3 data files and
+   data support can be improved. See contact address at the end of this document.
  - If the ambiguity field in the RTCM3 data is not set, the output will be no
    valid RINEX. All values will be stored modulo 299792.458. A COMMENT line
    will tell you, when this happens. It would be necessary to approximately
