@@ -1,6 +1,6 @@
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.c,v 1.24 2007/10/08 13:29:45 stoecker Exp $
+  $Id: rtcm3torinex.c,v 1.25 2007/10/25 09:37:42 stoecker Exp $
   Copyright (C) 2005-2006 by Dirk Stoecker <stoecker@alberding.eu>
 
   This software is a complete NTRIP-RTCM3 to RINEX converter as well as
@@ -50,7 +50,7 @@
 #include "rtcm3torinex.h"
 
 /* CVS revision and version */
-static char revisionstr[] = "$Revision: 1.24 $";
+static char revisionstr[] = "$Revision: 1.25 $";
 
 #ifndef COMPILEDATE
 #define COMPILEDATE " built " __DATE__
@@ -1535,7 +1535,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
 }
 
 #ifndef NO_RTCM3_MAIN
-static char datestr[]     = "$Date: 2007/10/08 13:29:45 $";
+static char datestr[]     = "$Date: 2007/10/25 09:37:42 $";
 
 /* The string, which is send as agent in HTTP request */
 #define AGENTSTRING "NTRIP NtripRTCM3ToRINEX"
@@ -2264,6 +2264,7 @@ int main(int argc, char **argv)
         "GET %s%s%s%s/ HTTP/1.0\r\n"
         "Host: %s\r\n%s"
         "User-Agent: %s/%s\r\n"
+        "Connection: close\r\n"
         "\r\n"
         , proxyserver ? "http://" : "", proxyserver ? proxyserver : "",
         proxyserver ? ":" : "", proxyserver ? proxyport : "",
@@ -2276,6 +2277,7 @@ int main(int argc, char **argv)
         "GET %s%s%s%s/%s HTTP/1.0\r\n"
         "Host: %s\r\n%s"
         "User-Agent: %s/%s\r\n"
+        "Connection: close\r\n"
         "Authorization: Basic "
         , proxyserver ? "http://" : "", proxyserver ? proxyserver : "",
         proxyserver ? ":" : "", proxyserver ? proxyport : "",
@@ -2396,6 +2398,7 @@ int main(int argc, char **argv)
                   else if(i >= 'a' && i <= 'f') chunksize = chunksize*16+i-'a'+10;
                   else if(i >= 'A' && i <= 'F') chunksize = chunksize*16+i-'A'+10;
                   else if(i == '\r') ++chunkymode;
+                  else if(i == ';') chunkymode = 5;
                   else stop = 1;
                   break;
                 case 3: /* scanning for return */
@@ -2415,6 +2418,9 @@ int main(int argc, char **argv)
                   pos += i;
                   if(!chunksize)
                     chunkymode = 1;
+                  break;
+                case 5:
+                  if(i == '\r') chunkymode = 3;
                   break;
                 }
               }
