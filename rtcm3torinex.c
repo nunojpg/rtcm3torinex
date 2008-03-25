@@ -1,11 +1,11 @@
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.c,v 1.25 2007/10/25 09:37:42 stoecker Exp $
-  Copyright (C) 2005-2006 by Dirk Stoecker <stoecker@alberding.eu>
+  $Id: rtcm3torinex.c,v 1.26 2007/12/20 10:42:10 stoecker Exp $
+  Copyright (C) 2005-2008 by Dirk Stöcker <stoecker@alberding.eu>
 
   This software is a complete NTRIP-RTCM3 to RINEX converter as well as
   a module of the BNC tool for multiformat conversion. Contact Dirk
-  St�cker for suggestions and bug reports related to the RTCM3 to RINEX
+  Stöcker for suggestions and bug reports related to the RTCM3 to RINEX
   conversion problems and the author of BNC for all the other problems.
 
   This program is free software; you can redistribute it and/or modify
@@ -50,7 +50,7 @@
 #include "rtcm3torinex.h"
 
 /* CVS revision and version */
-static char revisionstr[] = "$Revision: 1.25 $";
+static char revisionstr[] = "$Revision: 1.26 $";
 
 #ifndef COMPILEDATE
 #define COMPILEDATE " built " __DATE__
@@ -109,7 +109,7 @@ static int GetMessage(struct RTCM3ParserData *handle)
   }
   if(e-m < 3)
     handle->NeedBytes = 3;
-  
+
   /* copy buffer to front */
   i = m - handle->Message;
   if(i && m < e)
@@ -181,7 +181,7 @@ struct leapseconds { /* specify the day of leap second */
   int month;      /* not the next day! */
   int year;
   int taicount;
-}; 
+};
 static const int months[13] = {0,31,28,31,30,31,30,31,31,30,31,30,31};
 static const struct leapseconds leap[] = {
 /*{31, 12, 1971, 11},*/
@@ -458,15 +458,11 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
             s = GNSSDF_S1CDATA; se = GNSSENTRY_S1CDATA;
           }
           GETBITS(l1range, 24);
-          if((l1range&((1<<24)-1)) != 0x80000)
-          {
-            gnss->dataflags[num] |= c;
-            gnss->measdata[num][ce] = l1range*0.02;
-          }
           GETBITSSIGN(i, 20);
           if((i&((1<<20)-1)) != 0x80000)
           {
-            gnss->dataflags[num] |= l;
+            gnss->dataflags[num] |= (c|l);
+            gnss->measdata[num][ce] = l1range*0.02;
             gnss->measdata[num][le] = l1range*0.02+i*0.0005;
           }
           GETBITS(i, 7);
@@ -621,15 +617,14 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
             s = GNSSDF_S1CDATA; se = GNSSENTRY_S1CDATA;
           }
           GETBITS(l1range, 25)
-          if((l1range&((1<<25)-1)) != 0x80000)
-          {
-            gnss->dataflags[num] |= c;
-            gnss->measdata[num][ce] = l1range*0.02;
-          }
           GETBITSSIGN(i, 20)
           if((i&((1<<20)-1)) != 0x80000)
           {
-            gnss->dataflags[num] |= l;
+            /* Handle this like GPS. Actually for GLONASS L1 range is always
+               valid. To be on the save side, we handle it as invalid like we
+               do for GPS and also remove range in case of 0x80000. */
+            gnss->dataflags[num] |= (c|l);
+            gnss->measdata[num][ce] = l1range*0.02;
             gnss->measdata[num][le] = l1range*0.02+i*0.0005;
           }
           GETBITS(i, 7)
@@ -897,7 +892,7 @@ void HandleHeader(struct RTCM3ParserData *Parser)
   hdata.data.named.antennaposition =
   "         .0000         .0000         .0000                  "
   "ANTENNA: DELTA H/E/N";
-  
+
   hdata.data.named.wavelength = Parser->rinex3 ? 0 :
   "     1     1                                                "
   "WAVELENGTH FACT L1/2";
@@ -1535,7 +1530,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
 }
 
 #ifndef NO_RTCM3_MAIN
-static char datestr[]     = "$Date: 2007/10/25 09:37:42 $";
+static char datestr[]     = "$Date: 2007/12/20 10:42:10 $";
 
 /* The string, which is send as agent in HTTP request */
 #define AGENTSTRING "NTRIP NtripRTCM3ToRINEX"
@@ -2096,7 +2091,7 @@ int main(int argc, char **argv)
       if((numbytes=recv(sockfd, buf, MAXDATASIZE-1, 0)) != -1)
       {
         if(numbytes >= 17 && !strncmp(buf, "RTSP/1.0 200 OK\r\n", 17))
-	{
+        {
           int serverport = 0, session = 0;
           const char *portcheck = "server_port=";
           const char *sessioncheck = "session: ";
@@ -2332,7 +2327,7 @@ int main(int argc, char **argv)
           {
             if(numbytes > 17 && (!strncmp(buf, "HTTP/1.1 200 OK\r\n", 17)
             || !strncmp(buf, "HTTP/1.0 200 OK\r\n", 17)))
-	    {
+            {
               const char *datacheck = "Content-Type: gnss/data\r\n";
               const char *chunkycheck = "Transfer-Encoding: chunked\r\n";
               int l = strlen(datacheck)-1;
