@@ -1,6 +1,6 @@
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.c,v 1.28 2008/06/20 06:15:25 stoecker Exp $
+  $Id: rtcm3torinex.c,v 1.29 2008/07/22 15:15:51 stoecker Exp $
   Copyright (C) 2005-2008 by Dirk Stöcker <stoecker@alberding.eu>
 
   This software is a complete NTRIP-RTCM3 to RINEX converter as well as
@@ -50,7 +50,7 @@
 #include "rtcm3torinex.h"
 
 /* CVS revision and version */
-static char revisionstr[] = "$Revision: 1.28 $";
+static char revisionstr[] = "$Revision: 1.30 $";
 
 #ifndef COMPILEDATE
 #define COMPILEDATE " built " __DATE__
@@ -435,10 +435,10 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
 
         GETBITS(syncf,1) /* sync */
         GETBITS(i,5)
-        gnss->numsats = i;
+        gnss->numsats += i;
         SKIPBITS(4) /* smind, smint */
 
-        for(num = 0; num < gnss->numsats; ++num)
+        for(num = gnss->numsats-i; num < gnss->numsats; ++num)
         {
           int sv, code, l1range, c,l,s,ce,le,se,amb=0;
 
@@ -833,7 +833,7 @@ int rinex3)
   t2 = gmtime(&t);
   if(u) *u = user;
   return 1+snprintf(buffer, buffersize,
-  rinex3 ? 
+  rinex3 ?
   "RTCM3TORINEX %-7.7s%-20.20s%04d%02d%02d %02d%02d%02d UTC "
   "PGM / RUN BY / DATE" :
   "RTCM3TORINEX %-7.7s%-20.20s%04d-%02d-%02d %02d:%02d    "
@@ -1531,7 +1531,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
 }
 
 #ifndef NO_RTCM3_MAIN
-static char datestr[]     = "$Date: 2008/06/20 06:15:25 $";
+static char datestr[]     = "$Date: 2008/07/22 15:15:51 $";
 
 /* The string, which is send as agent in HTTP request */
 #define AGENTSTRING "NTRIP NtripRTCM3ToRINEX"
@@ -1932,7 +1932,7 @@ int main(int argc, char **argv)
 
   if(getargs(argc, argv, &args))
   {
-    int sockfd, numbytes;  
+    int sockfd, numbytes;
     char buf[MAXDATASIZE];
     struct sockaddr_in their_addr; /* connector's address information */
     struct hostent *he;
@@ -2023,23 +2023,23 @@ int main(int argc, char **argv)
       }
       /* fill structure with local address information for UDP */
       memset(&local, 0, sizeof(local));
-      local.sin_family = AF_INET;  	
+      local.sin_family = AF_INET;
       local.sin_port = htons(0);
-      local.sin_addr.s_addr = htonl(INADDR_ANY); 
+      local.sin_addr.s_addr = htonl(INADDR_ANY);
       len = sizeof(local);
-      /* bind() in order to get a random RTP client_port */ 
+      /* bind() in order to get a random RTP client_port */
       if((bind(sockudp, (struct sockaddr *)&local, len)) < 0)
       {
         perror("bind");
         exit(1);
       }
-      if((getsockname(sockudp, (struct sockaddr*)&local, &len)) != -1) 
+      if((getsockname(sockudp, (struct sockaddr*)&local, &len)) != -1)
       {
-        localport = ntohs(local.sin_port); 
+        localport = ntohs(local.sin_port);
       }
       else
       {
-        perror("local access failed"); 
+        perror("local access failed");
         exit(1);
       }
       if(connect(sockfd, (struct sockaddr *)&their_addr,
@@ -2049,8 +2049,8 @@ int main(int argc, char **argv)
         exit(1);
       }
       i=snprintf(buf, MAXDATASIZE-40, /* leave some space for login */
-      "SETUP rtsp://%s%s%s/%s RTSP/1.0\r\n" 	        
-      "CSeq: %d\r\n"		
+      "SETUP rtsp://%s%s%s/%s RTSP/1.0\r\n"
+      "CSeq: %d\r\n"
       "Ntrip-Version: Ntrip/2.0\r\n"
       "Ntrip-Component: Ntripclient\r\n"
       "User-Agent: %s/%s\r\n"
@@ -2144,10 +2144,10 @@ int main(int argc, char **argv)
           }
 
           i = snprintf(buf, MAXDATASIZE,
-          "PLAY rtsp://%s%s%s/%s RTSP/1.0\r\n"	        
+          "PLAY rtsp://%s%s%s/%s RTSP/1.0\r\n"
           "CSeq: %d\r\n"
           "Session: %d\r\n"
-          "\r\n", 
+          "\r\n",
           args.server, proxyserver ? ":" : "", proxyserver ? args.port : "",
           args.data, cseq++, session);
 
@@ -2168,7 +2168,7 @@ int main(int argc, char **argv)
               struct sockaddr_in addrRTP;
               /* fill structure with caster address information for UDP */
               memset(&addrRTP, 0, sizeof(addrRTP));
-              addrRTP.sin_family = AF_INET;  
+              addrRTP.sin_family = AF_INET;
               addrRTP.sin_port   = htons(serverport);
               their_addr.sin_addr = *((struct in_addr *)he->h_addr);
               len = sizeof(addrRTP);
@@ -2210,10 +2210,10 @@ int main(int argc, char **argv)
               }
             }
             i = snprintf(buf, MAXDATASIZE,
-            "TEARDOWN rtsp://%s%s%s/%s RTSP/1.0\r\n"	        
+            "TEARDOWN rtsp://%s%s%s/%s RTSP/1.0\r\n"
             "CSeq: %d\r\n"
             "Session: %d\r\n"
-            "\r\n", 
+            "\r\n",
             args.server, proxyserver ? ":" : "", proxyserver ? args.port : "",
             args.data, cseq++, session);
 
