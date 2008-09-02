@@ -3,8 +3,8 @@
 
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.h,v 1.6 2007/01/15 13:01:40 stoecker Exp $
-  Copyright (C) 2005-2006 by Dirk Stoecker <stoecker@alberding.eu>
+  $Id: rtcm3torinex.h,v 1.11 2008/08/09 23:58:23 weber Exp $
+  Copyright (C) 2005-2006 by Dirk Stöcker <stoecker@alberding.eu>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -114,7 +114,7 @@ struct gnssdata {
 #define GPSEPHF_L2CACODE       (1<<2) /* set, if CA-code available, s1w3b11 */
 #define GPSEPHF_VALIDATED      (1<<3) /* data is completely valid */
 
-#define PI          3.1415926535898
+#define R2R_PI          3.1415926535898
 
 struct gpsephemeris {
   int    flags;            /* GPSEPHF_xxx */
@@ -193,6 +193,10 @@ struct RTCM3ParserData {
   int    size;
   int    lastlockl1[64];
   int    lastlockl2[64];
+#ifndef NO_RTCM3_MAIN
+  int    typeSize;       /* RTCM message types */
+  int    typeList[101];  /* RTCM message types */
+#endif /* NO_RTCM3_MAIN */
   int    datapos[RINEXENTRY_NUMBER];
   int    dataflag[RINEXENTRY_NUMBER];
   /* for RINEX2 GPS and GLO are both handled in GPS */

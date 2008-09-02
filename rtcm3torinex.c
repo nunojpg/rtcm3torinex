@@ -1,6 +1,6 @@
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.c,v 1.30 2008/09/01 07:47:15 stoecker Exp $
+  $Id: rtcm3torinex.c,v 1.15 2008/08/15 17:00:03 weber Exp $
   Copyright (C) 2005-2008 by Dirk Stöcker <stoecker@alberding.eu>
 
   This software is a complete NTRIP-RTCM3 to RINEX converter as well as
@@ -50,7 +50,7 @@
 #include "rtcm3torinex.h"
 
 /* CVS revision and version */
-static char revisionstr[] = "$Revision: 1.30 $";
+static char revisionstr[] = "$Revision: 1.15 $";
 
 #ifndef COMPILEDATE
 #define COMPILEDATE " built " __DATE__
@@ -236,7 +236,7 @@ static int gnumleap(int year, int month, int day)
   return ls;
 }
 
-static void updatetime(int *week, int *tow, int tk, int fixnumleap)
+void updatetime(int *week, int *tow, int tk, int fixnumleap)
 {
   int y,m,d,k,l, nul;
   unsigned int j = *week*(7*24*60*60) + *tow + 5*24*60*60+3*60*60;
@@ -282,6 +282,10 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
     unsigned char *data = handle->Message+3;
 
     GETBITS(type,12)
+#ifndef NO_RTCM3_MAIN
+    handle->typeList[handle->typeSize] = type;           /* RTCM message types */
+    if(handle->typeSize < 100) {handle->typeSize += 1;}  /* RTCM message types */
+#endif /* NO_RTCM3_MAIN */
     switch(type)
     {
     case 1019:
@@ -302,7 +306,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
           ge->flags |= GPSEPHF_L2PCODE;
         if(sv & 2)
           ge->flags |= GPSEPHF_L2CACODE;
-        GETFLOATSIGN(ge->IDOT, 14, PI/(double)(1<<30)/(double)(1<<13))
+        GETFLOATSIGN(ge->IDOT, 14, R2R_PI/(double)(1<<30)/(double)(1<<13))
         GETBITS(ge->IODE, 8)
         GETBITS(ge->TOC, 16)
         ge->TOC <<= 4;
@@ -311,8 +315,8 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         GETFLOATSIGN(ge->clock_bias, 22, 1.0/(double)(1<<30)/(double)(1<<1))
         GETBITS(ge->IODC, 10)
         GETFLOATSIGN(ge->Crs, 16, 1.0/(double)(1<<5))
-        GETFLOATSIGN(ge->Delta_n, 16, PI/(double)(1<<30)/(double)(1<<13))
-        GETFLOATSIGN(ge->M0, 32, PI/(double)(1<<30)/(double)(1<<1))
+        GETFLOATSIGN(ge->Delta_n, 16, R2R_PI/(double)(1<<30)/(double)(1<<13))
+        GETFLOATSIGN(ge->M0, 32, R2R_PI/(double)(1<<30)/(double)(1<<1))
         GETFLOATSIGN(ge->Cuc, 16, 1.0/(double)(1<<29))
         GETFLOAT(ge->e, 32, 1.0/(double)(1<<30)/(double)(1<<3))
         GETFLOATSIGN(ge->Cus, 16, 1.0/(double)(1<<29))
@@ -321,12 +325,12 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         ge->TOE <<= 4;
 
         GETFLOATSIGN(ge->Cic, 16, 1.0/(double)(1<<29))
-        GETFLOATSIGN(ge->OMEGA0, 32, PI/(double)(1<<30)/(double)(1<<1))
+        GETFLOATSIGN(ge->OMEGA0, 32, R2R_PI/(double)(1<<30)/(double)(1<<1))
         GETFLOATSIGN(ge->Cis, 16, 1.0/(double)(1<<29))
-        GETFLOATSIGN(ge->i0, 32, PI/(double)(1<<30)/(double)(1<<1))
+        GETFLOATSIGN(ge->i0, 32, R2R_PI/(double)(1<<30)/(double)(1<<1))
         GETFLOATSIGN(ge->Crc, 16, 1.0/(double)(1<<5))
-        GETFLOATSIGN(ge->omega, 32, PI/(double)(1<<30)/(double)(1<<1))
-        GETFLOATSIGN(ge->OMEGADOT, 24, PI/(double)(1<<30)/(double)(1<<13))
+        GETFLOATSIGN(ge->omega, 32, R2R_PI/(double)(1<<30)/(double)(1<<1))
+        GETFLOATSIGN(ge->OMEGADOT, 24, R2R_PI/(double)(1<<30)/(double)(1<<13))
         GETFLOATSIGN(ge->TGD, 8, 1.0/(double)(1<<30)/(double)(1<<1))
         GETBITS(ge->SVhealth, 6)
         GETBITS(sv, 1)
@@ -771,7 +775,7 @@ struct converttimeinfo {
   int year;      /* year of GPS time [1980..] */
 };
 
-static void converttime(struct converttimeinfo *c, int week, int tow)
+void converttime(struct converttimeinfo *c, int week, int tow)
 {
   int i, k, doy, j; /* temporary variables */
   j = week*(7*24*60*60) + tow + 5*24*60*60;
@@ -841,9 +845,96 @@ int rinex3)
   t2->tm_mon+1, t2->tm_mday, t2->tm_hour, t2->tm_min, t2->tm_sec);
 }
 
+#ifdef NO_RTCM3_MAIN
+#define NUMSTARTSKIP 1
+#else
 #define NUMSTARTSKIP 3
+#endif
+
 void HandleHeader(struct RTCM3ParserData *Parser)
 {
+#ifdef NO_RTCM3_MAIN
+  int i;
+  if(Parser->rinex3)
+  {
+#define CHECKFLAGSNEW(a, b, c) \
+    { \
+      Parser->dataflag##a[Parser->numdatatypes##a] = GNSSDF_##b##DATA; \
+      Parser->datapos##a[Parser->numdatatypes##a] = GNSSENTRY_##b##DATA; \
+      ++Parser->numdatatypes##a; \
+    }
+
+    CHECKFLAGSNEW(GPS, C1,  C1C)
+    CHECKFLAGSNEW(GPS, L1C, L1C)
+    CHECKFLAGSNEW(GPS, D1C, D1C)
+    CHECKFLAGSNEW(GPS, S1C, S1C)
+    CHECKFLAGSNEW(GPS, P1,  C1P)
+    CHECKFLAGSNEW(GPS, L1P, L1P)
+    CHECKFLAGSNEW(GPS, D1P, D1P)
+    CHECKFLAGSNEW(GPS, S1P, S1P)
+    CHECKFLAGSNEW(GPS, P2,  C2P)
+    CHECKFLAGSNEW(GPS, L2P, L2P)
+    CHECKFLAGSNEW(GPS, D2P, D2P)
+    CHECKFLAGSNEW(GPS, S2P, S2P)
+    CHECKFLAGSNEW(GPS, C2,  C2X)
+    CHECKFLAGSNEW(GPS, L2C, L2X)
+    CHECKFLAGSNEW(GPS, D2C, D2X)
+    CHECKFLAGSNEW(GPS, S2C, S2X)
+    CHECKFLAGSNEW(GLO, C1,  C1C)
+    CHECKFLAGSNEW(GLO, L1C, L1C)
+    CHECKFLAGSNEW(GLO, D1C, D1C)
+    CHECKFLAGSNEW(GLO, S1C, S1C)
+    CHECKFLAGSNEW(GLO, P1,  C1P)
+    CHECKFLAGSNEW(GLO, L1P, L1P)
+    CHECKFLAGSNEW(GLO, D1P, D1P)
+    CHECKFLAGSNEW(GLO, S1P, S1P)
+    CHECKFLAGSNEW(GLO, P2,  C2P)
+    CHECKFLAGSNEW(GLO, L2P, L2P)
+    CHECKFLAGSNEW(GLO, D2P, D2P)
+    CHECKFLAGSNEW(GLO, S2P, S2P)
+    CHECKFLAGSNEW(GLO, C2,  C2C)
+    CHECKFLAGSNEW(GLO, L2C, L2C)
+    CHECKFLAGSNEW(GLO, D2C, D2C)
+    CHECKFLAGSNEW(GLO, S2C, S2C)
+  }
+  else
+  {
+#define CHECKFLAGS(a, b) \
+    { \
+      if(data[RINEXENTRY_##b##DATA]) \
+      { \
+        Parser->dataflagGPS[data[RINEXENTRY_##b##DATA]-1] = GNSSDF_##a##DATA; \
+        Parser->dataposGPS[data[RINEXENTRY_##b##DATA]-1] = GNSSENTRY_##a##DATA; \
+      } \
+      else \
+      { \
+        Parser->dataflag[Parser->numdatatypesGPS] = GNSSDF_##a##DATA; \
+        Parser->datapos[Parser->numdatatypesGPS] = GNSSENTRY_##a##DATA; \
+        data[RINEXENTRY_##b##DATA] = ++Parser->numdatatypesGPS; \
+      } \
+    }
+
+    int data[RINEXENTRY_NUMBER];
+    for(i = 0; i < RINEXENTRY_NUMBER; ++i) data[i] = 0;
+
+    CHECKFLAGS(C1,C1)
+    CHECKFLAGS(C2,C2)
+    CHECKFLAGS(P1,P1)
+    CHECKFLAGS(P2,P2)
+    CHECKFLAGS(L1C,L1)
+    CHECKFLAGS(L1P,L1)
+    CHECKFLAGS(L2C,L2)
+    CHECKFLAGS(L2P,L2)
+    CHECKFLAGS(D1C,D1)
+    CHECKFLAGS(D1P,D1)
+    CHECKFLAGS(D2C,D2)
+    CHECKFLAGS(D2P,D2)
+    CHECKFLAGS(S1C,S1)
+    CHECKFLAGS(S1P,S1)
+    CHECKFLAGS(S2C,S2)
+    CHECKFLAGS(S2P,S2)
+  }
+#else /* NO_RTCM3_MAIN */
   struct HeaderData hdata;
   char thebuffer[MAXHEADERBUFFERSIZE];
   char *buffer = thebuffer;
@@ -1134,7 +1225,6 @@ void HandleHeader(struct RTCM3ParserData *Parser)
     }
   }
 
-#ifndef NO_RTCM3_MAIN
   for(i = 0; i < hdata.numheaders; ++i)
   {
     if(hdata.data.unnamed[i] && hdata.data.unnamed[i][0])
@@ -1531,7 +1621,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
 }
 
 #ifndef NO_RTCM3_MAIN
-static char datestr[]     = "$Date: 2008/09/01 07:47:15 $";
+static char datestr[]     = "$Date: 2008/08/15 17:00:03 $";
 
 /* The string, which is send as agent in HTTP request */
 #define AGENTSTRING "NTRIP NtripRTCM3ToRINEX"
