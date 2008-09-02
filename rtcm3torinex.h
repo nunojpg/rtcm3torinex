@@ -3,7 +3,7 @@
 
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.h,v 1.11 2008/08/09 23:58:23 weber Exp $
+  $Id: rtcm3torinex.h,v 1.8 2008/09/02 07:45:48 stoecker Exp $
   Copyright (C) 2005-2006 by Dirk Stöcker <stoecker@alberding.eu>
 
   This program is free software; you can redistribute it and/or modify
@@ -193,7 +193,7 @@ struct RTCM3ParserData {
   int    size;
   int    lastlockl1[64];
   int    lastlockl2[64];
-#ifndef NO_RTCM3_MAIN
+#ifdef NO_RTCM3_MAIN
   int    typeSize;       /* RTCM message types */
   int    typeList[101];  /* RTCM message types */
 #endif /* NO_RTCM3_MAIN */
