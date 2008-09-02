@@ -1,6 +1,6 @@
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.c,v 1.29 2008/07/22 15:15:51 stoecker Exp $
+  $Id: rtcm3torinex.c,v 1.30 2008/09/01 07:47:15 stoecker Exp $
   Copyright (C) 2005-2008 by Dirk Stöcker <stoecker@alberding.eu>
 
   This software is a complete NTRIP-RTCM3 to RINEX converter as well as
@@ -1531,7 +1531,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
 }
 
 #ifndef NO_RTCM3_MAIN
-static char datestr[]     = "$Date: 2008/07/22 15:15:51 $";
+static char datestr[]     = "$Date: 2008/09/01 07:47:15 $";
 
 /* The string, which is send as agent in HTTP request */
 #define AGENTSTRING "NTRIP NtripRTCM3ToRINEX"
@@ -1886,6 +1886,24 @@ static void signalhandler(int sig)
   }
 }
 
+#ifndef WINDOWSVERSION
+static void WaitMicro(int mic)
+{
+  struct timeval tv;
+  tv.tv_sec = mic/1000000;
+  tv.tv_usec = mic%1000000;
+#ifdef DEBUG
+  fprintf(stderr, "Waiting %d micro seconds\n", mic);
+#endif
+  select(0, 0, 0, 0, &tv);
+}
+#else /* WINDOWSVERSION */
+void WaitMicro(int mic)
+{
+   Sleep(mic/1000);
+}
+#endif /* WINDOWSVERSION */
+
 #define ALARMTIME   (2*60)
 
 /* for some reason we had to abort hard (maybe waiting for data */
@@ -2191,6 +2209,7 @@ int main(int argc, char **argv)
 
                   if(init)
                   {
+                    int z;
                     if(u < -30000 && sn > 30000) sn -= 0xFFFF;
                     if(ssrc != w || ts > v)
                     {
@@ -2198,7 +2217,8 @@ int main(int argc, char **argv)
                       exit(1);
                     }
                     if(u > sn) /* don't show out-of-order packets */
-                      fwrite(buf+12, (size_t)i-12, 1, stdout);
+                    for(z = 12; z < i && !stop; ++z)
+                      HandleByte(&Parser, (unsigned int) buf[z]);
                   }
                   sn = u; ts = v; ssrc = w; init = 1;
                 }
@@ -2323,7 +2343,13 @@ int main(int argc, char **argv)
 
         while(!stop && (numbytes=recv(sockfd, buf, MAXDATASIZE-1, 0)) != -1)
         {
-          alarm(ALARMTIME);
+          if(numbytes > 0)
+            alarm(ALARMTIME);
+          else
+          {
+            WaitMicro(100);
+            continue;
+          }
           if(!k)
           {
             if(numbytes > 17 && (!strncmp(buf, "HTTP/1.1 200 OK\r\n", 17)
@@ -2352,7 +2378,7 @@ int main(int argc, char **argv)
               }
               if(i < numbytes-l)
                 chunkymode = 1;
-	    }
+            }
             else if(numbytes < 12 || strncmp("ICY 200 OK\r\n", buf, 12))
             {
               RTCM3Error("Could not get the requested data: ");
