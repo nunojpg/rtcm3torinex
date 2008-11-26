@@ -1,6 +1,6 @@
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.c,v 1.32 2008/09/02 07:45:48 stoecker Exp $
+  $Id: rtcm3torinex.c,v 1.19 2008/11/18 08:57:51 weber Exp $
   Copyright (C) 2005-2008 by Dirk Stöcker <stoecker@alberding.eu>
 
   This software is a complete NTRIP-RTCM3 to RINEX converter as well as
@@ -50,7 +50,7 @@
 #include "rtcm3torinex.h"
 
 /* CVS revision and version */
-static char revisionstr[] = "$Revision: 1.32 $";
+static char revisionstr[] = "$Revision: 1.19 $";
 
 #ifndef COMPILEDATE
 #define COMPILEDATE " built " __DATE__
@@ -176,6 +176,16 @@ static int GetMessage(struct RTCM3ParserData *handle)
 
 #define SKIPBITS(b) { LOADBITS(b) numbits -= (b); }
 
+/* extract byte-aligned byte from data stream,
+   b = variable to store size, s = variable to store string pointer */
+#define GETSTRING(b, s) \
+{ \
+  b = *(data++); \
+  s = (char *) data; \
+  data += b; \
+  size -= b+1; \
+}
+
 struct leapseconds { /* specify the day of leap second */
   int day;        /* this is the day, where 23:59:59 exists 2 times */
   int month;      /* not the next day! */
@@ -272,7 +282,11 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
 {
   int ret=0;
 
+#ifdef NO_RTCM3_MAIN
+  if(GetMessage(handle)) /* don't repeat */
+#else
   while(!ret && GetMessage(handle))
+#endif /* NO_RTCM3_MAIN */
   {
     /* using 64 bit integer types, as it is much easier than handling
     the long datatypes in 32 bit */
@@ -283,11 +297,40 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
 
     GETBITS(type,12)
 #ifdef NO_RTCM3_MAIN
-    handle->typeList[handle->typeSize] = type;           /* RTCM message types */
-    if(handle->typeSize < 100) {handle->typeSize += 1;}  /* RTCM message types */
+    handle->blocktype = type;
 #endif /* NO_RTCM3_MAIN */
     switch(type)
     {
+#ifdef NO_RTCM3_MAIN
+    default:
+      ret = type;
+      break;
+    case 1005: case 1006:
+      {
+        SKIPBITS(22)
+        GETBITSSIGN(handle->antX, 38)
+        SKIPBITS(2)
+        GETBITSSIGN(handle->antY, 38)
+        SKIPBITS(2)
+        GETBITSSIGN(handle->antZ, 38)
+        if(type == 1006)
+          GETBITS(handle->antH, 16)
+        ret = type;
+      }
+      break;
+    case 1007: case 1008: case 1033:
+      {
+        char *antenna;
+        int antnum;
+
+        SKIPBITS(12)
+        GETSTRING(antnum,antenna)
+        memcpy(handle->antenna, antenna, antnum);
+        handle->antenna[antnum] = 0;
+        ret = type;
+      }
+      break;
+#endif /* NO_RTCM3_MAIN */
     case 1019:
       {
         struct gpsephemeris *ge;
@@ -1621,7 +1664,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
 }
 
 #ifndef NO_RTCM3_MAIN
-static char datestr[]     = "$Date: 2008/09/02 07:45:48 $";
+static char datestr[]     = "$Date: 2008/11/18 08:57:51 $";
 
 /* The string, which is send as agent in HTTP request */
 #define AGENTSTRING "NTRIP NtripRTCM3ToRINEX"
