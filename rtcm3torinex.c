@@ -1,6 +1,6 @@
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.c,v 1.34 2008/11/26 10:14:46 stoecker Exp $
+  $Id: rtcm3torinex.c,v 1.35 2008/12/02 15:50:20 stoecker Exp $
   Copyright (C) 2005-2008 by Dirk Stöcker <stoecker@alberding.eu>
 
   This software is a complete NTRIP-RTCM3 to RINEX converter as well as
@@ -50,7 +50,7 @@
 #include "rtcm3torinex.h"
 
 /* CVS revision and version */
-static char revisionstr[] = "$Revision: 1.34 $";
+static char revisionstr[] = "$Revision: 1.35 $";
 
 #ifndef COMPILEDATE
 #define COMPILEDATE " built " __DATE__
@@ -458,7 +458,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         int lastlockl1[64];
         int lastlockl2[64];
         struct gnssdata *gnss;
-        int i, num, wasamb=0;
+        int i, numsats, wasamb=0;
 
         for(i = 0; i < 64; ++i)
           lastlockl1[i] = lastlockl2[i] = 0;
@@ -481,16 +481,23 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         gnss->week = handle->GPSWeek;
 
         GETBITS(syncf,1) /* sync */
-        GETBITS(i,5)
-        gnss->numsats += i;
+        GETBITS(numsats,5)
         SKIPBITS(4) /* smind, smint */
 
-        for(num = gnss->numsats-i; num < gnss->numsats; ++num)
+        while(numsats--)
         {
           int sv, code, l1range, c,l,s,ce,le,se,amb=0;
+          int fullsat, num;
 
-          GETBITS(sv, 6);
-          gnss->satellites[num] = (sv < 40 ? sv : sv+80);
+          GETBITS(sv, 6)
+          fullsat = sv < 40 ? sv : sv+80;
+          for(num = 0; num < gnss->numsats
+          && fullsat != gnss->satellites[num]; ++num)
+            ;
+
+          if(num == gnss->numsats)
+            gnss->satellites[gnss->numsats++] = fullsat;
+
           /* L1 */
           GETBITS(code, 1);
           if(code)
@@ -616,7 +623,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         int lastlockl1[64];
         int lastlockl2[64];
         struct gnssdata *gnss;
-        int i, num;
+        int i, numsats;
         int wasamb=0;
 
         for(i = 0; i < 64; ++i)
@@ -641,18 +648,25 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         gnss->week = handle->GPSWeek;
 
         GETBITS(syncf,1) /* sync */
-        GETBITS(i,5)
-        gnss->numsats += i;
+        GETBITS(numsats,5)
 
         SKIPBITS(4) /* smind, smint */
 
-        for(num = gnss->numsats-i; num < gnss->numsats; ++num)
+        while(numsats--)
         {
           int sv, code, l1range, c,l,s,ce,le,se,amb=0;
           int freq;
+          int fullsat, num;
 
           GETBITS(sv, 6)
-          gnss->satellites[num] = sv-1 + PRN_GLONASS_START;
+          fullsat = sv-1 + PRN_GLONASS_START;
+          for(num = 0; num < gnss->numsats
+          && fullsat != gnss->satellites[num]; ++num)
+            ;
+
+          if(num == gnss->numsats)
+            gnss->satellites[gnss->numsats++] = fullsat;
+
           /* L1 */
           GETBITS(code, 1)
           GETBITS(freq, 5)
@@ -753,10 +767,8 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
             }
             gnss->measdata[num][le] /= GLO_WAVELENGTH_L2(freq-7);
           }
-          if(!sv || sv > 24)
-          {
-            --num; --gnss->numsats;
-          }
+          if(!sv || sv > 24) /* illegal, remove it again */
+            --gnss->numsats;
         }
         for(i = 0; i < 64; ++i)
         {
@@ -1672,7 +1684,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
 }
 
 #ifndef NO_RTCM3_MAIN
-static char datestr[]     = "$Date: 2008/11/26 10:14:46 $";
+static char datestr[]     = "$Date: 2008/12/02 15:50:20 $";
 
 /* The string, which is send as agent in HTTP request */
 #define AGENTSTRING "NTRIP NtripRTCM3ToRINEX"
