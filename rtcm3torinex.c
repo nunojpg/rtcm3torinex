@@ -1,6 +1,6 @@
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.c,v 1.35 2008/12/02 15:50:20 stoecker Exp $
+  $Id: rtcm3torinex.c,v 1.36 2008/12/03 08:33:16 stoecker Exp $
   Copyright (C) 2005-2008 by Dirk Stöcker <stoecker@alberding.eu>
 
   This software is a complete NTRIP-RTCM3 to RINEX converter as well as
@@ -50,7 +50,7 @@
 #include "rtcm3torinex.h"
 
 /* CVS revision and version */
-static char revisionstr[] = "$Revision: 1.35 $";
+static char revisionstr[] = "$Revision: 1.36 $";
 
 #ifndef COMPILEDATE
 #define COMPILEDATE " built " __DATE__
@@ -240,7 +240,7 @@ static int gnumleap(int year, int month, int day)
 
   for(l = leap; l->taicount && year >= l->year; ++l)
   {
-    if(year > l->year || month > l->month || day > l->day)
+    if(year > l->year || month > l->month || (month == l->month && day > l->day))
        ls = l->taicount - GPSLEAPSTART;
   }
   return ls;
@@ -1684,7 +1684,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
 }
 
 #ifndef NO_RTCM3_MAIN
-static char datestr[]     = "$Date: 2008/12/02 15:50:20 $";
+static char datestr[]     = "$Date: 2008/12/03 08:33:16 $";
 
 /* The string, which is send as agent in HTTP request */
 #define AGENTSTRING "NTRIP NtripRTCM3ToRINEX"
