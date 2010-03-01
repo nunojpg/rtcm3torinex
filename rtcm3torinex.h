@@ -3,7 +3,7 @@
 
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.h,v 1.14 2008/11/10 18:07:35 weber Exp $
+  $Id: rtcm3torinex.h,v 1.19 2010/01/12 12:13:23 mervart Exp $
   Copyright (C) 2005-2006 by Dirk Stöcker <stoecker@alberding.eu>
 
   This program is free software; you can redistribute it and/or modify
@@ -21,6 +21,8 @@
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
   or read http://www.gnu.org/licenses/gpl.txt
 */
+
+#include <stdio.h>
 
 #define PRN_GPS_START             1
 #define PRN_GPS_END               32
@@ -97,6 +99,15 @@
 #define GNSSDF_LOCKLOSSL1     (1<<29)  /* lost lock on L1 */
 #define GNSSDF_LOCKLOSSL2     (1<<30)  /* lost lock on L2 */
 
+struct converttimeinfo {
+  int second;    /* seconds of GPS time [0..59] */
+  int minute;    /* minutes of GPS time [0..59] */
+  int hour;      /* hour of GPS time [0..24] */
+  int day;       /* day of GPS time [1..28..30(31)*/
+  int month;     /* month of GPS time [1..12]*/
+  int year;      /* year of GPS time [1980..] */
+};
+
 struct gnssdata {
   int    flags;              /* GPSF_xxx */
   int    week;               /* week number of GPS date */
@@ -105,6 +116,7 @@ struct gnssdata {
   double measdata[24][GNSSENTRY_NUMBER];  /* data fields */ 
   int    dataflags[24];      /* GPSDF_xxx */
   int    satellites[24];     /* SV - IDs */
+  int    channels[24];       /* Glonass channels - valid of Glonass SV only */
   int    snrL1[24];          /* Important: all the 5 SV-specific fields must */
   int    snrL2[24];          /* have the same SV-order */
 };
@@ -228,6 +240,10 @@ struct RTCM3ParserData {
 #define PRINTFARG(a,b)
 #endif /* __GNUC__ */
 #endif /* PRINTFARG */
+
+int gnumleap(int year, int month, int day);
+void updatetime(int *week, int *tow, int tk, int fixnumleap);
+void converttime(struct converttimeinfo *c, int week, int tow);
 
 void HandleHeader(struct RTCM3ParserData *Parser);
 int RTCM3Parser(struct RTCM3ParserData *handle);
