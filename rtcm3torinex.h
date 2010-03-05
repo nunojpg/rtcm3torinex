@@ -3,7 +3,7 @@
 
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.h,v 1.19 2010/01/12 12:13:23 mervart Exp $
+  $Id: rtcm3torinex.h,v 1.11 2010/03/01 13:48:25 stoecker Exp $
   Copyright (C) 2005-2006 by Dirk Stöcker <stoecker@alberding.eu>
 
   This program is free software; you can redistribute it and/or modify
@@ -23,6 +23,8 @@
 */
 
 #include <stdio.h>
+
+#define GNSS_MAXSATS 64
 
 #define PRN_GPS_START             1
 #define PRN_GPS_END               32
@@ -113,12 +115,12 @@ struct gnssdata {
   int    week;               /* week number of GPS date */
   int    numsats;
   double timeofweek;         /* milliseconds in GPS week */
-  double measdata[24][GNSSENTRY_NUMBER];  /* data fields */ 
-  int    dataflags[24];      /* GPSDF_xxx */
-  int    satellites[24];     /* SV - IDs */
-  int    channels[24];       /* Glonass channels - valid of Glonass SV only */
-  int    snrL1[24];          /* Important: all the 5 SV-specific fields must */
-  int    snrL2[24];          /* have the same SV-order */
+  double measdata[GNSS_MAXSATS][GNSSENTRY_NUMBER];  /* data fields */ 
+  int    dataflags[GNSS_MAXSATS];      /* GPSDF_xxx */
+  int    satellites[GNSS_MAXSATS];     /* SV - IDs */
+  int    channels[GNSS_MAXSATS];       /* Glonass channels - valid of Glonass SV only */
+  int    snrL1[GNSS_MAXSATS];          /* Important: all the 5 SV-specific fields must */
+  int    snrL2[GNSS_MAXSATS];          /* have the same SV-order */
 };
 
 #define GPSEPHF_L2PCODEDATA    (1<<0) /* set, if NAV data OFF on L2 P-code, s1w4b01 */
