@@ -3,7 +3,7 @@
 
 /*
   Converter for RTCM3 data to RINEX.
-  $Id: rtcm3torinex.h,v 1.12 2010/03/05 11:11:06 stoecker Exp $
+  $Id$
   Copyright (C) 2005-2006 by Dirk Stöcker <stoecker@alberding.eu>
 
   This program is free software; you can redistribute it and/or modify
@@ -21,6 +21,8 @@
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
   or read http://www.gnu.org/licenses/gpl.txt
 */
+
+#define RTCM3TORINEX_VERSION "1.50"
 
 #include <stdio.h>
 
