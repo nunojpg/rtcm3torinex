@@ -527,7 +527,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
           }
           GETBITS(i, 7);
           lastlockl1[sv] = i;
-          if(handle->lastlockl1[sv] > i)
+          if(handle->lastlockGPSl1[sv] > i)
             gnss->dataflags[num] |= GNSSDF_LOCKLOSSL1;
           if(type == 1002 || type == 1004)
           {
@@ -584,7 +584,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
             }
             GETBITS(i,7);
             lastlockl2[sv] = i;
-            if(handle->lastlockl2[sv] > i)
+            if(handle->lastlockGPSl2[sv] > i)
               gnss->dataflags[num] |= GNSSDF_LOCKLOSSL2;
             if(type == 1004)
             {
@@ -604,8 +604,8 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         }
         for(i = 0; i < 64; ++i)
         {
-          handle->lastlockl1[i] = lastlockl1[i];
-          handle->lastlockl2[i] = lastlockl2[i];
+          handle->lastlockGPSl1[i] = lastlockl1[i];
+          handle->lastlockGPSl2[i] = lastlockl2[i];
         }
         if(!syncf && !old)
         {
@@ -705,7 +705,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
           }
           GETBITS(i, 7)
           lastlockl1[sv] = i;
-          if(handle->lastlockl1[sv] > i)
+          if(handle->lastlockGLOl1[sv] > i)
             gnss->dataflags[num] |= GNSSDF_LOCKLOSSL1;
           if(type == 1010 || type == 1012)
           {
@@ -760,7 +760,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
             }
             GETBITS(i,7)
             lastlockl2[sv] = i;
-            if(handle->lastlockl2[sv] > i)
+            if(handle->lastlockGLOl2[sv] > i)
               gnss->dataflags[num] |= GNSSDF_LOCKLOSSL2;
             if(type == 1012)
             {
@@ -782,8 +782,8 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         }
         for(i = 0; i < 64; ++i)
         {
-          handle->lastlockl1[i] = lastlockl1[i];
-          handle->lastlockl2[i] = lastlockl2[i];
+          handle->lastlockGLOl1[i] = lastlockl1[i];
+          handle->lastlockGLOl2[i] = lastlockl2[i];
         }
         if(!syncf && !old)
         {

@@ -208,8 +208,10 @@ struct RTCM3ParserData {
   struct glonassephemeris ephemerisGLONASS;
   struct gnssdata DataNew;
   int    size;
-  int    lastlockl1[64];
-  int    lastlockl2[64];
+  int    lastlockGPSl1[64];
+  int    lastlockGPSl2[64];
+  int    lastlockGLOl1[64];
+  int    lastlockGLOl2[64];
 #ifdef NO_RTCM3_MAIN
   double antX;
   double antY;
