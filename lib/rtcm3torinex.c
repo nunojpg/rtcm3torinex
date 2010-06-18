@@ -527,7 +527,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
           }
           GETBITS(i, 7);
           lastlockl1[sv] = i;
-          if(handle->lastlockGPSl1[sv] > i)
+          if(handle->lastlockGPSl1[sv] > i || i == 0)
             gnss->dataflags[num] |= GNSSDF_LOCKLOSSL1;
           if(type == 1002 || type == 1004)
           {
@@ -584,7 +584,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
             }
             GETBITS(i,7);
             lastlockl2[sv] = i;
-            if(handle->lastlockGPSl2[sv] > i)
+            if(handle->lastlockGPSl2[sv] > i || i == 0)
               gnss->dataflags[num] |= GNSSDF_LOCKLOSSL2;
             if(type == 1004)
             {
@@ -705,7 +705,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
           }
           GETBITS(i, 7)
           lastlockl1[sv] = i;
-          if(handle->lastlockGLOl1[sv] > i)
+          if(handle->lastlockGLOl1[sv] > i || i == 0)
             gnss->dataflags[num] |= GNSSDF_LOCKLOSSL1;
           if(type == 1010 || type == 1012)
           {
@@ -760,7 +760,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
             }
             GETBITS(i,7)
             lastlockl2[sv] = i;
-            if(handle->lastlockGLOl2[sv] > i)
+            if(handle->lastlockGLOl2[sv] > i || i == 0)
               gnss->dataflags[num] |= GNSSDF_LOCKLOSSL2;
             if(type == 1012)
             {
