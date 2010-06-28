@@ -219,6 +219,9 @@ struct RTCM3ParserData {
   double antH;
   char   antenna[256+1];
   int    blocktype;
+  int    modjulday;
+  int    secofday;
+  int    leapsec;
 #endif /* NO_RTCM3_MAIN */
   int    datapos[RINEXENTRY_NUMBER];
   int    dataflag[RINEXENTRY_NUMBER];

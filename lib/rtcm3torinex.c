@@ -335,6 +335,16 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         ret = type;
       }
       break;
+    case 1013:
+      {
+        SKIPBITS(12);
+        GETBITS(handle->modjulday, 16);
+        GETBITS(handle->secofday, 17);
+        SKIPBITS(5);
+        GETBITS(handle->leapsec, 8);
+        ret = 1013;
+      }
+      break;
 #endif /* NO_RTCM3_MAIN */
     case 1019:
       {
