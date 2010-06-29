@@ -219,6 +219,7 @@ struct RTCM3ParserData {
   double antH;
   char   antenna[256+1];
   int    blocktype;
+  int    allflags;
   int    modjulday;
   int    secofday;
   int    leapsec;

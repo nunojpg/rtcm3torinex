@@ -935,9 +935,12 @@ void HandleHeader(struct RTCM3ParserData *Parser)
 {
 #ifdef NO_RTCM3_MAIN
   int i;
+  if(Parser->allflags == 0)
+    Parser->allflags = ~0;
   if(Parser->rinex3)
   {
 #define CHECKFLAGSNEW(a, b, c) \
+    if(Parser->allflags & GNSSDF_##b##DATA) \
     { \
       Parser->dataflag##a[Parser->numdatatypes##a] = GNSSDF_##b##DATA; \
       Parser->datapos##a[Parser->numdatatypes##a] = GNSSENTRY_##b##DATA; \
@@ -980,6 +983,7 @@ void HandleHeader(struct RTCM3ParserData *Parser)
   else
   {
 #define CHECKFLAGS(a, b) \
+    if(Parser->allflags & GNSSDF_##a##DATA) \
     { \
       if(data[RINEXENTRY_##b##DATA]) \
       { \
