@@ -1486,7 +1486,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
           }
         }
       }
-      else
+      else if (r == 1 || r == 2)
       {
         int i, j, o;
         struct converttimeinfo cti;
