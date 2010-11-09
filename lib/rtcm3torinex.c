@@ -690,7 +690,8 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
           GETBITS(code, 1)
           GETBITS(freq, 5)
 
-          gnss->channels[num] = freq - 7;
+          if(sv >= 1 && sv <= PRN_GLONASS_NUM)
+            handle->GLOFreq[sv-1] = 100+freq-7;
 
           if(code)
           {

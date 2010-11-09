@@ -212,7 +212,6 @@ struct gnssdata {
   unsigned int dataflags[GNSS_MAXSATS];      /* GNSSDF_xxx */
   unsigned int dataflags2[GNSS_MAXSATS];     /* GNSSDF2_xxx */
   int    satellites[GNSS_MAXSATS];     /* SV - IDs */
-  int    channels[GNSS_MAXSATS];       /* Glonass channels - valid of Glonass SV only */
   int    snrL1[GNSS_MAXSATS];          /* Important: all the 5 SV-specific fields must */
   int    snrL2[GNSS_MAXSATS];          /* have the same SV-order */
 };
