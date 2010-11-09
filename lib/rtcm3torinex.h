@@ -26,14 +26,30 @@
 
 #include <stdio.h>
 
+#define NUMRTCM3PARSERSATS    144
 #define GNSS_MAXSATS 64
 
 #define PRN_GPS_START             1
 #define PRN_GPS_END               32
 #define PRN_GLONASS_START         38
 #define PRN_GLONASS_END           61
+#define PRN_GALILEO_START         71
+#define PRN_GALILEO_END           100
 #define PRN_WAAS_START            120
 #define PRN_WAAS_END              138
+#define PRN_GIOVE_START           139
+#define PRN_GIOVE_END             140
+
+#define PRN_GLONASS_NUM           (PRN_GLONASS_END-PRN_GLONASS_START+1)
+
+#define RTCM3_MSM_NUMSIG      24
+#define RTCM3_MSM_NUMSAT      40
+#define RTCM3_MSM_NUMCELLS    64
+
+/* system identifiers, use start PRN as value */
+#define RTCM3_MSM_GPS     PRN_GPS_START
+#define RTCM3_MSM_GLONASS PRN_GLONASS_START
+#define RTCM3_MSM_GALILEO PRN_GALILEO_START
 
 #define GNSSENTRY_C1DATA     0
 #define GNSSENTRY_C2DATA     1
@@ -51,10 +67,28 @@
 #define GNSSENTRY_S1PDATA    13
 #define GNSSENTRY_S2CDATA    14
 #define GNSSENTRY_S2PDATA    15
-#define GNSSENTRY_NUMBER     16 /* number of types!!! */
+
+#define GNSSENTRY_C5DATA     16
+#define GNSSENTRY_L5DATA     17
+#define GNSSENTRY_D5DATA     18
+#define GNSSENTRY_S5DATA     19
+#define GNSSENTRY_C6DATA     20
+#define GNSSENTRY_L6DATA     21
+#define GNSSENTRY_D6DATA     22
+#define GNSSENTRY_S6DATA     23
+#define GNSSENTRY_C5BDATA    24
+#define GNSSENTRY_L5BDATA    25
+#define GNSSENTRY_D5BDATA    26
+#define GNSSENTRY_S5BDATA    27
+#define GNSSENTRY_C5ABDATA   28
+#define GNSSENTRY_L5ABDATA   29
+#define GNSSENTRY_D5ABDATA   30
+#define GNSSENTRY_S5ABDATA   31
+
+#define GNSSENTRY_NUMBER     32 /* number of types!!! */
 
 /* Data flags. These flags are used in the dataflags field of gpsdata structure
-   and are used the determine, which data fields are filled with valid data. */
+   and are required to determine, which data fields are filled with valid data. */
 #define GNSSDF_C1DATA         (1<<GNSSENTRY_C1DATA)
 #define GNSSDF_C2DATA         (1<<GNSSENTRY_C2DATA)
 #define GNSSDF_P1DATA         (1<<GNSSENTRY_P1DATA)
@@ -72,6 +106,23 @@
 #define GNSSDF_S2CDATA        (1<<GNSSENTRY_S2CDATA)
 #define GNSSDF_S2PDATA        (1<<GNSSENTRY_S2PDATA)
 
+#define GNSSDF_C5DATA         (1<<GNSSENTRY_C5DATA)
+#define GNSSDF_L5DATA         (1<<GNSSENTRY_L5DATA)
+#define GNSSDF_D5DATA         (1<<GNSSENTRY_D5DATA)
+#define GNSSDF_S5DATA         (1<<GNSSENTRY_S5DATA)
+#define GNSSDF_C6DATA         (1<<GNSSENTRY_C6DATA)
+#define GNSSDF_L6DATA         (1<<GNSSENTRY_L6DATA)
+#define GNSSDF_D6DATA         (1<<GNSSENTRY_D6DATA)
+#define GNSSDF_S6DATA         (1<<GNSSENTRY_S6DATA)
+#define GNSSDF_C5BDATA        (1<<GNSSENTRY_C5BDATA)
+#define GNSSDF_L5BDATA        (1<<GNSSENTRY_L5BDATA)
+#define GNSSDF_D5BDATA        (1<<GNSSENTRY_D5BDATA)
+#define GNSSDF_S5BDATA        (1<<GNSSENTRY_S5BDATA)
+#define GNSSDF_C5ABDATA       (1<<GNSSENTRY_C5ABDATA)
+#define GNSSDF_L5ABDATA       (1<<GNSSENTRY_L5ABDATA)
+#define GNSSDF_D5ABDATA       (1<<GNSSENTRY_D5ABDATA)
+#define GNSSDF_S5ABDATA       (1<<GNSSENTRY_S5ABDATA)
+
 #define RINEXENTRY_C1DATA     0
 #define RINEXENTRY_C2DATA     1
 #define RINEXENTRY_P1DATA     2
@@ -82,13 +133,33 @@
 #define RINEXENTRY_D2DATA     7
 #define RINEXENTRY_S1DATA     8
 #define RINEXENTRY_S2DATA     9
-#define RINEXENTRY_NUMBER     10
+
+#define RINEXENTRY_C5DATA     10
+#define RINEXENTRY_L5DATA     11
+#define RINEXENTRY_D5DATA     12
+#define RINEXENTRY_S5DATA     13
+#define RINEXENTRY_C6DATA     14
+#define RINEXENTRY_L6DATA     15
+#define RINEXENTRY_D6DATA     16
+#define RINEXENTRY_S6DATA     17
+#define RINEXENTRY_C5BDATA    18
+#define RINEXENTRY_L5BDATA    19
+#define RINEXENTRY_D5BDATA    20
+#define RINEXENTRY_S5BDATA    21
+#define RINEXENTRY_C5ABDATA   22
+#define RINEXENTRY_L5ABDATA   23
+#define RINEXENTRY_D5ABDATA   24
+#define RINEXENTRY_S5ABDATA   25
+
+#define RINEXENTRY_NUMBER     26
 
 #define LIGHTSPEED         2.99792458e8    /* m/sec */
 #define GPS_FREQU_L1       1575420000.0  /* Hz */
 #define GPS_FREQU_L2       1227600000.0  /* Hz */
+#define GPS_FREQU_L5       1176450000.0  /* Hz */
 #define GPS_WAVELENGTH_L1  (LIGHTSPEED / GPS_FREQU_L1) /* m */
 #define GPS_WAVELENGTH_L2  (LIGHTSPEED / GPS_FREQU_L2) /* m */
+#define GPS_WAVELENGTH_L5  (LIGHTSPEED / GPS_FREQU_L5) /* m */
 
 #define GLO_FREQU_L1_BASE  1602000000.0  /* Hz */
 #define GLO_FREQU_L2_BASE  1246000000.0  /* Hz */
@@ -99,10 +170,29 @@
 #define GLO_WAVELENGTH_L1(a) (LIGHTSPEED / GLO_FREQU_L1(a)) /* m */
 #define GLO_WAVELENGTH_L2(a) (LIGHTSPEED / GLO_FREQU_L2(a)) /* m */
 
+#define GAL_FREQU_E1       1575420000.0  /* Hz */
+#define GAL_FREQU_E5A      1176450000.0  /* Hz */
+#define GAL_FREQU_E5AB     1197950000.0  /* Hz */
+#define GAL_FREQU_E5B      1207140000.0  /* Hz */
+#define GAL_FREQU_E6       1278750000.0  /* Hz */
+#define GAL_WAVELENGTH_E1     (LIGHTSPEED / GAL_FREQU_E1) /* m */
+#define GAL_WAVELENGTH_E5A    (LIGHTSPEED / GAL_FREQU_E5A) /* m */
+#define GAL_WAVELENGTH_E5AB   (LIGHTSPEED / GAL_FREQU_E5AB) /* m */
+#define GAL_WAVELENGTH_E5B    (LIGHTSPEED / GAL_FREQU_E5B) /* m */
+#define GAL_WAVELENGTH_E6     (LIGHTSPEED / GAL_FREQU_E6) /* m */
+
+#define PRN_GIOVE_OFFSET 51
+
 /* Additional flags for the data field, which tell us more. */
-#define GNSSDF_XCORRL2        (1<<28)  /* cross-correlated L2 */
-#define GNSSDF_LOCKLOSSL1     (1<<29)  /* lost lock on L1 */
-#define GNSSDF_LOCKLOSSL2     (1<<30)  /* lost lock on L2 */
+#define GNSSDF2_XCORRL2        (1<<0)  /* cross-correlated L2 */
+#define GNSSDF2_LOCKLOSSL1     (1<<1)  /* lost lock on L1 */
+#define GNSSDF2_LOCKLOSSL2     (1<<2)  /* lost lock on L2 */
+#define GNSSDF2_LOCKLOSSL5     (1<<3)  /* lost lock on L5 */
+#define GNSSDF2_LOCKLOSSE6     (1<<4)  /* lost lock on E6 */
+#define GNSSDF2_LOCKLOSSE5B    (1<<5)  /* lost lock on E5B */
+#define GNSSDF2_LOCKLOSSE5AB   (1<<6)  /* lost lock on E5AB */
+
+#define UINT64(c) c ## ULL
 
 struct converttimeinfo {
   int second;    /* seconds of GPS time [0..59] */
@@ -114,12 +204,13 @@ struct converttimeinfo {
 };
 
 struct gnssdata {
-  int    flags;              /* GPSF_xxx */
+  int    flags;              /* GNSSF_xxx */
   int    week;               /* week number of GPS date */
   int    numsats;
   double timeofweek;         /* milliseconds in GPS week */
   double measdata[GNSS_MAXSATS][GNSSENTRY_NUMBER];  /* data fields */ 
-  int    dataflags[GNSS_MAXSATS];      /* GPSDF_xxx */
+  unsigned int dataflags[GNSS_MAXSATS];      /* GNSSDF_xxx */
+  unsigned int dataflags2[GNSS_MAXSATS];     /* GNSSDF2_xxx */
   int    satellites[GNSS_MAXSATS];     /* SV - IDs */
   int    channels[GNSS_MAXSATS];       /* Glonass channels - valid of Glonass SV only */
   int    snrL1[GNSS_MAXSATS];          /* Important: all the 5 SV-specific fields must */
@@ -207,11 +298,13 @@ struct RTCM3ParserData {
   struct gpsephemeris ephemerisGPS;
   struct glonassephemeris ephemerisGLONASS;
   struct gnssdata DataNew;
+  int    GLOFreq[PRN_GLONASS_NUM]; /* frequency numbers of GLONASS + 100 */
   int    size;
   int    lastlockGPSl1[64];
   int    lastlockGPSl2[64];
   int    lastlockGLOl1[64];
   int    lastlockGLOl2[64];
+  int    lastlockmsm[RTCM3_MSM_NUMCELLS][NUMRTCM3PARSERSATS];
 #ifdef NO_RTCM3_MAIN
   double antX;
   double antY;
