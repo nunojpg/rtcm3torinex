@@ -954,7 +954,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
           GNSSENTRY_S5DATA,GNSSDF2_LOCKLOSSL5,GAL_WAVELENGTH_E5A,"5X"},
         };
 
-        int sys = RTCM3_MSM_GPS, i, count, j, old = 0, wasamb = 0;
+        int sys = RTCM3_MSM_GPS, i, count, j, old = 0, wasnoamb = 0;
         int syncf, sigmask, numsat = 0, numsig = 0, numcells;
         uint64_t satmask, cellmask, ui;
         double rrmod[RTCM3_MSM_NUMSAT];
@@ -1016,7 +1016,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         switch(type % 10)
         {
         case 1: case 2: case 3:
-          ++wasamb;
+          ++wasnoamb;
           for(j = numsat; j--;)
             GETFLOAT(rrmod[j], 10, 1/1024.0)
           break;
@@ -1183,7 +1183,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                   if(psr[count] > -327.68)
                   {
                     gnss->measdata[num][cd.typeR] = psr[count]
-                    +(rrmod[numsat]+rrint[numsat])*LIGHTSPEED/1000.0;
+                    +(rrmod[numsat])*LIGHTSPEED/1000.0;
                     gnss->dataflags[num] |= (1<<cd.typeR);
                   }
                   break;
@@ -1191,7 +1191,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                   if(wl && cp[count] > -2048.0)
                   {
                     gnss->measdata[num][cd.typeP] = cp[count]
-                    +(rrmod[numsat]+rrint[numsat])*LIGHTSPEED/1000.0/wl;
+                    +(rrmod[numsat])*LIGHTSPEED/1000.0/wl;
                     if(handle->lastlockmsm[j][i] != ll[count])
                     {
                       gnss->dataflags2[num] |= cd.lock;
@@ -1204,7 +1204,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                   if(psr[count] > -327.68)
                   {
                     gnss->measdata[num][cd.typeR] = psr[count]
-                    +(rrmod[numsat]+rrint[numsat])*LIGHTSPEED/1000.0;
+                    +(rrmod[numsat])*LIGHTSPEED/1000.0;
                     gnss->dataflags[num] |= (1<<cd.typeR);
                   }
 
@@ -1336,7 +1336,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         }
         if(!syncf || old)
         {
-          if(wasamb) /* not RINEX compatible without */
+          if(!wasnoamb) /* not RINEX compatible without */
             ret = 1;
           else
             ret = 2;
