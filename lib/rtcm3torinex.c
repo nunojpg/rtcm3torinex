@@ -954,7 +954,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
           GNSSENTRY_S5DATA,GNSSDF2_LOCKLOSSL5,GAL_WAVELENGTH_E5A,"5X"},
         };
 
-        int sys = RTCM3_MSM_GPS, i, count, j, old = 0, wasnoamb = 0;
+        int sys = RTCM3_MSM_GPS, i=0, count, j, old = 0, wasnoamb = 0;
         int syncf, sigmask, numsat = 0, numsig = 0, numcells;
         uint64_t satmask, cellmask, ui;
         double rrmod[RTCM3_MSM_NUMSAT];
@@ -1170,6 +1170,9 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
               if(cd.lock && wl) /* lock cannot have a valid zero value */
               {
                 int fullsat = sys+RTCM3_MSM_NUMSAT-i-1, num;
+                /* FIXME: workaround for GIOVE */
+                if(fullsat >= PRN_GALILEO_START && fullsat <= PRN_GALILEO_START+2)
+                  fullsat += PRN_GIOVE_START-PRN_GALILEO_START;
                 for(num = 0; num < gnss->numsats
                 && fullsat != gnss->satellites[num]; ++num)
                   ;
@@ -1368,6 +1371,7 @@ struct Header
   const char *typesofobsG; /* should not be modified outside */
   const char *typesofobsR; /* should not be modified outside */
   const char *typesofobsS; /* should not be modified outside */
+  const char *typesofobsE; /* should not be modified outside */
   const char *timeoffirstobs; /* should not be modified outside */
 };
 
@@ -1631,7 +1635,7 @@ void HandleHeader(struct RTCM3ParserData *Parser)
       Parser->dataflag##a[Parser->numdatatypes##a] = GNSSDF_##b##DATA; \
       Parser->datapos##a[Parser->numdatatypes##a] = GNSSENTRY_##b##DATA; \
       ++Parser->numdatatypes##a; \
-      snprintf(tbuffer+tbufferpos, sizeof(tbuffer)-tbufferpos, " "#c); \
+      snprintf(tbuffer+tbufferpos, sizeof(tbuffer)-tbufferpos, " %-3s", #c); \
       tbufferpos += 4; \
     }
 
@@ -1645,10 +1649,10 @@ void HandleHeader(struct RTCM3ParserData *Parser)
     CHECKFLAGSNEW(GPS, L1C, L1C)
     CHECKFLAGSNEW(GPS, D1C, D1C)
     CHECKFLAGSNEW(GPS, S1C, S1C)
-    CHECKFLAGSNEW(GPS, P1,  C1P)
-    CHECKFLAGSNEW(GPS, L1P, L1P)
-    CHECKFLAGSNEW(GPS, D1P, D1P)
-    CHECKFLAGSNEW(GPS, S1P, S1P)
+    CHECKFLAGSNEW(GPS, P1,  C1W)
+    CHECKFLAGSNEW(GPS, L1P, L1W)
+    CHECKFLAGSNEW(GPS, D1P, D1W)
+    CHECKFLAGSNEW(GPS, S1P, S1W)
 
     hdata.data.named.typesofobsS = buffer;
     i = 1+snprintf(buffer, buffersize,
@@ -1663,6 +1667,10 @@ void HandleHeader(struct RTCM3ParserData *Parser)
     CHECKFLAGSNEW(GPS, L2C, L2X)
     CHECKFLAGSNEW(GPS, D2C, D2X)
     CHECKFLAGSNEW(GPS, S2C, S2X)
+    CHECKFLAGSNEW(GPS, C5,  C5)
+    CHECKFLAGSNEW(GPS, L5,  L5)
+    CHECKFLAGSNEW(GPS, D5,  D5)
+    CHECKFLAGSNEW(GPS, S5,  S5)
 
     hdata.data.named.typesofobsG = buffer;
     i = 1+snprintf(buffer, buffersize,
@@ -1697,6 +1705,39 @@ void HandleHeader(struct RTCM3ParserData *Parser)
     i = 1+snprintf(buffer, buffersize,
     "R  %3d%-52.52s  SYS / # / OBS TYPES", Parser->numdatatypesGLO, tbuffer);
     if(Parser->numdatatypesGLO>13)
+    {
+      i += snprintf(buffer+i-1, buffersize,
+      "\n      %-52.52s  SYS / # / OBS TYPES", tbuffer+13*4);
+    }
+    buffer += i; buffersize -= i;
+
+    tbufferpos = 0;
+
+    CHECKFLAGSNEW(GAL, C1,   C1)
+    CHECKFLAGSNEW(GAL, L1C,  L1)
+    CHECKFLAGSNEW(GAL, D1C,  D1)
+    CHECKFLAGSNEW(GAL, S1C,  S1)
+    CHECKFLAGSNEW(GAL, C6,   C6)
+    CHECKFLAGSNEW(GAL, L6,   L6)
+    CHECKFLAGSNEW(GAL, D6,   D6)
+    CHECKFLAGSNEW(GAL, S6,   S6)
+    CHECKFLAGSNEW(GAL, C5,   C5)
+    CHECKFLAGSNEW(GAL, L5,   L5)
+    CHECKFLAGSNEW(GAL, D5,   D5)
+    CHECKFLAGSNEW(GAL, S5,   S5)
+    CHECKFLAGSNEW(GAL, C5B,  C7)
+    CHECKFLAGSNEW(GAL, L5B,  L7)
+    CHECKFLAGSNEW(GAL, D5B,  D7)
+    CHECKFLAGSNEW(GAL, S5B,  S7)
+    CHECKFLAGSNEW(GAL, C5AB, C8)
+    CHECKFLAGSNEW(GAL, L5AB, L8)
+    CHECKFLAGSNEW(GAL, D5AB, D8)
+    CHECKFLAGSNEW(GAL, S5AB, S8)
+
+    hdata.data.named.typesofobsE = buffer;
+    i = 1+snprintf(buffer, buffersize,
+    "E  %3d%-52.52s  SYS / # / OBS TYPES", Parser->numdatatypesGAL, tbuffer);
+    if(Parser->numdatatypesGAL>13)
     {
       i += snprintf(buffer+i-1, buffersize,
       "\n      %-52.52s  SYS / # / OBS TYPES", tbuffer+13*4);
@@ -2086,7 +2127,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
           + fmod(Parser->Data.timeofweek/1000.0,1.0), Parser->Data.numsats);
           for(i = 0; i < Parser->Data.numsats; ++i)
           {
-            int glo = 0;
+            int glo = 0, gal = 0;
             if(Parser->Data.satellites[i] <= PRN_GPS_END)
               RTCM3Text("G%02d", Parser->Data.satellites[i]);
             else if(Parser->Data.satellites[i] >= PRN_GLONASS_START
@@ -2094,6 +2135,18 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
             {
               RTCM3Text("R%02d", Parser->Data.satellites[i] - (PRN_GLONASS_START-1));
               glo = 1;
+            }
+            else if(Parser->Data.satellites[i] >= PRN_GALILEO_START
+            && Parser->Data.satellites[i] <= PRN_GALILEO_END)
+            {
+              RTCM3Text("E%02d", Parser->Data.satellites[i] - (PRN_GALILEO_START-1));
+              gal = 1;
+            }
+            else if(Parser->Data.satellites[i] >= PRN_GIOVE_START
+            && Parser->Data.satellites[i] <= PRN_GIOVE_END)
+            {
+              RTCM3Text("E%02d", Parser->Data.satellites[i] - (PRN_GIOVE_START-PRN_GIOVE_OFFSET));
+              gal = 1;
             }
             else if(Parser->Data.satellites[i] >= PRN_WAAS_START
             && Parser->Data.satellites[i] <= PRN_WAAS_END)
@@ -2134,6 +2187,57 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
                 }
               }
             }
+            else if(gal)
+            {
+              for(j = 0; j < Parser->numdatatypesGAL; ++j)
+              {
+                int df = Parser->dataflagGAL[j];
+                int pos = Parser->dataposGAL[j];
+                if((Parser->Data.dataflags[i] & df)
+                && !isnan(Parser->Data.measdata[i][pos])
+                && !isinf(Parser->Data.measdata[i][pos]))
+                {
+                  char lli = ' ';
+                  char snr = ' ';
+                  if(df & (GNSSDF_L1CDATA|GNSSDF_L1PDATA))
+                  {
+                    if(Parser->Data.dataflags2[i] & GNSSDF2_LOCKLOSSL1)
+                      lli = '1';
+                    snr = '0'+Parser->Data.snrL1[i];
+                  }
+                  if(df & GNSSDF_L6DATA)
+                  {
+                    if(Parser->Data.dataflags2[i] & GNSSDF2_LOCKLOSSE6)
+                      lli = '1';
+                    snr = ' ';
+                  }
+                  if(df & GNSSDF_L5DATA)
+                  {
+                    if(Parser->Data.dataflags2[i] & GNSSDF2_LOCKLOSSL5)
+                      lli = '1';
+                    snr = ' ';
+                  }
+                  if(df & GNSSDF_L5BDATA)
+                  {
+                    if(Parser->Data.dataflags2[i] & GNSSDF2_LOCKLOSSE5B)
+                      lli = '1';
+                    snr = ' ';
+                  }
+                  if(df & GNSSDF_L5ABDATA)
+                  {
+                    if(Parser->Data.dataflags2[i] & GNSSDF2_LOCKLOSSE5AB)
+                      lli = '1';
+                    snr = ' ';
+                  }
+                  RTCM3Text("%14.3f%c%c",
+                  Parser->Data.measdata[i][pos],lli,snr);
+                }
+                else
+                { /* no or illegal data */
+                  RTCM3Text("                ");
+                }
+              }
+            }
             else
             {
               for(j = 0; j < Parser->numdatatypesGPS; ++j)
@@ -2157,6 +2261,12 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
                     if(Parser->Data.dataflags2[i] & GNSSDF2_LOCKLOSSL2)
                       lli = '1';
                     snr = '0'+Parser->Data.snrL2[i];
+                  }
+                  if(df & GNSSDF_L5DATA)
+                  {
+                    if(Parser->Data.dataflags2[i] & GNSSDF2_LOCKLOSSL5)
+                      lli = '1';
+                    snr = ' ';
                   }
                   RTCM3Text("%14.3f%c%c",
                   Parser->Data.measdata[i][pos],lli,snr);

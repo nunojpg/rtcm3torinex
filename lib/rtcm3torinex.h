@@ -323,8 +323,11 @@ struct RTCM3ParserData {
   int    dataflagGPS[RINEXENTRY_NUMBER];
   int    dataposGLO[RINEXENTRY_NUMBER]; /* only used for RINEX3 */
   int    dataflagGLO[RINEXENTRY_NUMBER];
+  int    dataposGAL[RINEXENTRY_NUMBER]; /* only used for RINEX3 */
+  int    dataflagGAL[RINEXENTRY_NUMBER];
   int    numdatatypesGPS;
   int    numdatatypesGLO; /* only used for RINEX3 */
+  int    numdatatypesGAL; /* only used for RINEX3 */
   int    validwarning;
   int    init;
   int    startflags;
