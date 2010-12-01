@@ -142,6 +142,15 @@ static int GetMessage(struct RTCM3ParserData *handle)
   numbits -= (a); \
 }
 
+/* extract bits from data stream
+   b = variable to store result, a = number of bits */
+#define GETBITSFACTOR(b, a, c) \
+{ \
+  LOADBITS(a) \
+  b = ((bitfield<<(sizeof(bitfield)*8-numbits))>>(sizeof(bitfield)*8-(a)))*(c); \
+  numbits -= (a); \
+}
+
 /* extract floating value from data stream
    b = variable to store result, a = number of bits */
 #define GETFLOAT(b, a, c) \
@@ -396,6 +405,47 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
           ge->flags |= GPSEPHF_L2PCODEDATA;
 
         ret = 1019;
+      }
+      break;
+    case 1045:
+      {
+        struct galileoephemeris *ge;
+        int sv;
+
+        ge = &handle->ephemerisGALILEO;
+        memset(ge, 0, sizeof(*ge));
+
+        GETBITS(sv, 6)
+        ge->satellite = sv;
+        GETBITS(ge->Week, 12)
+        GETBITS(ge->IODnav, 10)
+        GETBITS(ge->SISA, 8)
+        GETFLOATSIGN(ge->IDOT, 14, R2R_PI/(double)(1<<30)/(double)(1<<13))
+        GETBITSFACTOR(ge->TOC, 14, 60)
+        GETFLOATSIGN(ge->clock_driftrate, 6, 1.0/(double)(1<<30)/(double)(1<<29))
+        GETFLOATSIGN(ge->clock_drift, 21, 1.0/(double)(1<<30)/(double)(1<<16))
+        GETFLOATSIGN(ge->clock_bias, 31, 1.0/(double)(1<<30)/(double)(1<<4))
+        GETFLOATSIGN(ge->Crs, 16, 1.0/(double)(1<<5))
+        GETFLOATSIGN(ge->Delta_n, 16, R2R_PI/(double)(1<<30)/(double)(1<<13))
+        GETFLOATSIGN(ge->M0, 32, R2R_PI/(double)(1<<30)/(double)(1<<1))
+        GETFLOATSIGN(ge->Cuc, 16, 1.0/(double)(1<<29))
+        GETFLOAT(ge->e, 32, 1.0/(double)(1<<30)/(double)(1<<3))
+        GETFLOATSIGN(ge->Cus, 16, 1.0/(double)(1<<29))
+        GETFLOAT(ge->sqrt_A, 32, 1.0/(double)(1<<19))
+        GETBITSFACTOR(ge->TOE, 14, 60)
+        GETFLOATSIGN(ge->Cic, 16, 1.0/(double)(1<<29))
+        GETFLOATSIGN(ge->OMEGA0, 32, R2R_PI/(double)(1<<30)/(double)(1<<1))
+        GETFLOATSIGN(ge->Cis, 16, 1.0/(double)(1<<29))
+        GETFLOATSIGN(ge->i0, 32, R2R_PI/(double)(1<<30)/(double)(1<<1))
+        GETFLOATSIGN(ge->Crc, 16, 1.0/(double)(1<<5))
+        GETFLOATSIGN(ge->omega, 32, R2R_PI/(double)(1<<30)/(double)(1<<1))
+        GETFLOATSIGN(ge->OMEGADOT, 24, R2R_PI/(double)(1<<30)/(double)(1<<13))
+        GETFLOATSIGN(ge->BGD_1_5A, 10, 1.0/(double)(1<<30)/(double)(1<<2))
+        GETBITS(ge->E5aHS, 2)
+        GETBITS(sv, 1)
+        if(sv)
+          ge->flags |= GALEPHF_E5ADINVALID;
+        ret = 1045;
       }
       break;
     case 1020:

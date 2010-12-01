@@ -255,6 +255,8 @@ struct gpsephemeris {
   double TGD;              /*  [s]     [s1w7b17-24]              */
 };
 
+#define GALEPHF_E5ADINVALID     (1<<0) /* E5aDVS set invalid */
+
 #define GLOEPHF_UNHEALTHY       (1<<0) /* set if unhealty satellite, f2b78 */
 #define GLOEPHF_ALMANACHEALTHOK (1<<1) /* set if ALM health is available */
 #define GLOEPHF_ALMANACHEALTHY  (1<<2) /* set if Cn word is true */
@@ -286,6 +288,36 @@ struct glonassephemeris {
   double z_acceleration;     /* [km/s^2][f3b36-40] */
 };
 
+struct galileoephemeris {
+  int    flags;            /* GALEPHF_xxx */
+  int    satellite;        /* SV ID */
+  int    IODnav;
+  int    TOC;              /* [s] */
+  int    TOE;              /* [s] */
+  double clock_bias;       /* [s] */
+  double clock_drift;      /* [s/s] */
+  double clock_driftrate;  /* [s/s^2] */
+  double Crs;              /* [m] */
+  double Delta_n;          /* [rad/s] */
+  double M0;               /* [rad] */
+  double Cuc;              /* [rad] */
+  double e;
+  double Cus;              /* [rad] */
+  double sqrt_A;           /* [m^0.5] */
+  double Cic;              /* [rad] */
+  double OMEGA0;           /* [rad] */
+  double Cis;              /* [rad] */
+  double i0;               /* [rad] */
+  double Crc;              /* [m] */
+  double omega;            /* [rad] */
+  double OMEGADOT;         /* [rad/s] */
+  double IDOT;             /* [rad/s] */
+  double BGD_1_5A;         /* [s] */
+  int    Week;
+  int    SISA;
+  int    E5aHS;
+};
+
 struct RTCM3ParserData {
   unsigned char Message[2048]; /* input-buffer */
   int    MessageSize;   /* current buffer size */
@@ -295,6 +327,7 @@ struct RTCM3ParserData {
   int    GPSTOW;        /* in seconds */
   struct gnssdata Data;
   struct gpsephemeris ephemerisGPS;
+  struct galileoephemeris ephemerisGALILEO;
   struct glonassephemeris ephemerisGLONASS;
   struct gnssdata DataNew;
   int    GLOFreq[PRN_GLONASS_NUM]; /* frequency numbers of GLONASS + 100 */
