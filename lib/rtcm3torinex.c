@@ -358,7 +358,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
     case 1019:
       {
         struct gpsephemeris *ge;
-        int sv;
+        int sv, i;
 
         ge = &handle->ephemerisGPS;
         memset(ge, 0, sizeof(*ge));
@@ -404,6 +404,13 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         if(sv)
           ge->flags |= GPSEPHF_L2PCODEDATA;
 
+        i = ((int)ge->GPSweek - (int)handle->GPSWeek)*7*24*60*60
+        + ((int)ge->TOE - (int)handle->GPSTOW) - 2*60*60;
+        if(i > 5*60*60 && i < 8*60*60)
+        {
+          handle->GPSTOW = ge->TOE;
+          handle->GPSWeek = ge->GPSweek;
+        }
         ret = 1019;
       }
       break;
