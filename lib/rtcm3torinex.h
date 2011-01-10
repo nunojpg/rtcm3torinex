@@ -313,6 +313,7 @@ struct galileoephemeris {
   double OMEGADOT;         /* [rad/s] */
   double IDOT;             /* [rad/s] */
   double BGD_1_5A;         /* [s] */
+  double BGD_1_5B;         /* [s] */
   int    Week;
   int    SISA;
   int    E5aHS;
