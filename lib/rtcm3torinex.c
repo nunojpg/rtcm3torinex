@@ -1058,8 +1058,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         gnss->week = handle->GPSWeek;
 
         GETBITS(syncf, 1)
-        if(((type % 10) == 6) || ((type % 10) == 7))
-          SKIPBITS(3)
+        SKIPBITS(3+7+1)
         GETBITS(satmask, RTCM3_MSM_NUMSAT)
 
         /* http://gurmeetsingh.wordpress.com/2008/08/05/fast-bit-counting-routines/ */
