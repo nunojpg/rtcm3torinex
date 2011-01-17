@@ -1329,7 +1329,8 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
 
                   if(dop[count] > -1.6384)
                   {
-                    gnss->measdata[num][cd.typeD] = dop[count]+rdop[numsat];
+                    gnss->measdata[num][cd.typeD] = (dop[count]
+                    +rdop[numsat])/wl;
                     gnss->dataflags[num] |= (1<<cd.typeD);
                   }
                   break;
@@ -1341,7 +1342,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                     gnss->dataflags[num] |= (1<<cd.typeR);
                   }
 
-                  if(wl && cp[count] > -2055.0)
+                  if(wl && cp[count] > -2048.0)
                   {
                     gnss->measdata[num][cd.typeP] = cp[count]
                     +(rrmod[numsat]+rrint[numsat])*LIGHTSPEED/1000.0/wl;
@@ -1364,7 +1365,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                     gnss->dataflags[num] |= (1<<cd.typeR);
                   }
 
-                  if(wl && cp[count] > -2055.0)
+                  if(wl && cp[count] > -2048.0)
                   {
                     gnss->measdata[num][cd.typeP] = cp[count]
                     +(rrmod[numsat]+rrint[numsat])*LIGHTSPEED/1000.0/wl;
@@ -1381,7 +1382,8 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
 
                   if(dop[count] > -1.6384)
                   {
-                    gnss->measdata[num][cd.typeD] = dop[count]+rdop[numsat];
+                    gnss->measdata[num][cd.typeD] = (dop[count]
+                    +rdop[numsat])/wl;
                     gnss->dataflags[num] |= (1<<cd.typeD);
                   }
                   break;

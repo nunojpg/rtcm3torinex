@@ -42,8 +42,8 @@
 
 #define PRN_GLONASS_NUM           (PRN_GLONASS_END-PRN_GLONASS_START+1)
 
-#define RTCM3_MSM_NUMSIG      24
-#define RTCM3_MSM_NUMSAT      40
+#define RTCM3_MSM_NUMSIG      32
+#define RTCM3_MSM_NUMSAT      64
 #define RTCM3_MSM_NUMCELLS    64
 
 /* system identifiers, use start PRN as value */
