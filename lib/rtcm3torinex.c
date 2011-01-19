@@ -135,6 +135,25 @@ static int GetMessage(struct RTCM3ParserData *handle)
 
 /* extract bits from data stream
    b = variable to store result, a = number of bits */
+#define GETBITS64(b, a) \
+{ \
+  if(((a) > 56) && ((a)-56) > numbits) \
+  { \
+    uint64_t x; \
+    GETBITS(x, 56) \
+    LOADBITS((a)-56) \
+    b = ((x<<((a)-56)) | (bitfield<<(sizeof(bitfield)*8-numbits)) \
+    >>(sizeof(bitfield)*8-((a)-56))); \
+    numbits -= ((a)-56); \
+  } \
+  else \
+  { \
+    GETBITS(b, a) \
+  } \
+}
+
+/* extract bits from data stream
+   b = variable to store result, a = number of bits */
 #define GETBITS(b, a) \
 { \
   LOADBITS(a) \
@@ -1059,7 +1078,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
 
         GETBITS(syncf, 1)
         SKIPBITS(3+7+1)
-        GETBITS(satmask, RTCM3_MSM_NUMSAT)
+        GETBITS64(satmask, RTCM3_MSM_NUMSAT)
 
         /* http://gurmeetsingh.wordpress.com/2008/08/05/fast-bit-counting-routines/ */
         for(ui = satmask; ui; ui &= (ui - 1) /* remove rightmost bit */)
@@ -1068,7 +1087,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         for(i = sigmask; i; i &= (i - 1) /* remove rightmost bit */)
           ++numsig;
         i = numsat*numsig;
-        GETBITS(cellmask, (unsigned)i)
+        GETBITS64(cellmask, (unsigned)i)
 
         switch(type % 10)
         {
