@@ -1347,7 +1347,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
 
                   if(dop[count] > -1.6384)
                   {
-                    gnss->measdata[num][cd.typeD] = (dop[count]
+                    gnss->measdata[num][cd.typeD] = -(dop[count]
                     +rdop[numsat])/wl;
                     gnss->dataflags[num] |= (1<<cd.typeD);
                   }
@@ -1400,7 +1400,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
 
                   if(dop[count] > -1.6384)
                   {
-                    gnss->measdata[num][cd.typeD] = (dop[count]
+                    gnss->measdata[num][cd.typeD] = -(dop[count]
                     +rdop[numsat])/wl;
                     gnss->dataflags[num] |= (1<<cd.typeD);
                   }
