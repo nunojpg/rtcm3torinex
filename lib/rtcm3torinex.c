@@ -430,6 +430,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
           handle->GPSTOW = ge->TOE;
           handle->GPSWeek = ge->GPSweek;
         }
+        ge->TOW = 0.9999E9;
         ret = 1019;
       }
       break;
