@@ -1246,10 +1246,17 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
               }
               if(cd.lock && wl) /* lock cannot have a valid zero value */
               {
-                int fullsat = sys+RTCM3_MSM_NUMSAT-i-1, num;
-                /* FIXME: workaround for GIOVE */
+                int fullsat = RTCM3_MSM_NUMSAT-i-1, num;
+
+                if(sys == RTCM3_MSM_GALILEO && fullsat >= 50 && fullsat <= 51)
+                  fullsat += PRN_GIOVE_START-50;
+                else
+                  fullsat += sys;
+
+                /* FIXME: workaround for GIOVE, remove me soon */
                 if(fullsat >= PRN_GALILEO_START && fullsat <= PRN_GALILEO_START+2)
                   fullsat += PRN_GIOVE_START-PRN_GALILEO_START;
+
                 for(num = 0; num < gnss->numsats
                 && fullsat != gnss->satellites[num]; ++num)
                   ;
