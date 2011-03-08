@@ -1253,10 +1253,6 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                 else
                   fullsat += sys;
 
-                /* FIXME: workaround for GIOVE, remove me soon */
-                if(fullsat >= PRN_GALILEO_START && fullsat <= PRN_GALILEO_START+2)
-                  fullsat += PRN_GIOVE_START-PRN_GALILEO_START;
-
                 for(num = 0; num < gnss->numsats
                 && fullsat != gnss->satellites[num]; ++num)
                   ;
