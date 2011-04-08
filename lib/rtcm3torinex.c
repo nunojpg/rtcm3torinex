@@ -300,10 +300,18 @@ void updatetime(int *week, int *secOfWeek, int mSecOfWeek, int fixnumleap)
   nul = gnumleap(y, m, d);
   glo_timeofday = j-nul;
 
-  if(mSecOfWeek < 5*60*1000 && glo_timeofday > 23*60*60)
+  // original version
+  // if(mSecOfWeek < 5*60*1000 && glo_timeofday > 23*60*60)
+  //   *secOfWeek += 24*60*60;
+  // else if(glo_timeofday < 5*60 && mSecOfWeek > 23*60*60*1000)
+  //   *secOfWeek -= 24*60*60;
+
+  // new version 
+  if(mSecOfWeek < 4*60*60*1000 && glo_timeofday > 20*60*60)
     *secOfWeek += 24*60*60;
-  else if(glo_timeofday < 5*60 && mSecOfWeek > 23*60*60*1000)
+  else if(glo_timeofday < 4*60*60 && mSecOfWeek > 20*60*60*1000)
     *secOfWeek -= 24*60*60;
+
   *secOfWeek += mSecOfWeek/1000-glo_timeofday;
   if(fixnumleap)
     *secOfWeek -= nul;
