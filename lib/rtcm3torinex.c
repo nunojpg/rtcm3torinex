@@ -929,8 +929,8 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
           GNSSENTRY_S1PDATA,GNSSDF2_LOCKLOSSL1,GPS_WAVELENGTH_L1,"1P"},
           {GNSSENTRY_P1DATA,GNSSENTRY_L1PDATA,GNSSENTRY_D1PDATA,
           GNSSENTRY_S1PDATA,GNSSDF2_LOCKLOSSL1,GPS_WAVELENGTH_L1,"1W"},
-          {GNSSENTRY_P1DATA,GNSSENTRY_L1PDATA,GNSSENTRY_D1PDATA,
-          GNSSENTRY_S1PDATA,GNSSDF2_LOCKLOSSL1,GPS_WAVELENGTH_L1,"1Y"},
+          {0,0,0,0,0,0,0}/*{GNSSENTRY_P1DATA,GNSSENTRY_L1PDATA,GNSSENTRY_D1PDATA,
+          GNSSENTRY_S1PDATA,GNSSDF2_LOCKLOSSL1,GPS_WAVELENGTH_L1,"1Y"}*/,
           {0,0,0,0,0,0,0},
           {0,0,0,0,0,0,0},
           {GNSSENTRY_C2DATA,GNSSENTRY_L2CDATA,GNSSENTRY_D2CDATA,
@@ -939,8 +939,8 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
           GNSSENTRY_S2PDATA,GNSSDF2_LOCKLOSSL2,GPS_WAVELENGTH_L2,"2P"},
           {GNSSENTRY_P2DATA,GNSSENTRY_L2PDATA,GNSSENTRY_D2PDATA,
           GNSSENTRY_S2PDATA,GNSSDF2_LOCKLOSSL2,GPS_WAVELENGTH_L2,"2W"},
-          {GNSSENTRY_P2DATA,GNSSENTRY_L2PDATA,GNSSENTRY_D2PDATA,
-          GNSSENTRY_S2PDATA,GNSSDF2_LOCKLOSSL2,GPS_WAVELENGTH_L2,"2Y"},
+          {0,0,0,0,0,0,0}/*{GNSSENTRY_P2DATA,GNSSENTRY_L2PDATA,GNSSENTRY_D2PDATA,
+          GNSSENTRY_S2PDATA,GNSSDF2_LOCKLOSSL2,GPS_WAVELENGTH_L2,"2Y"}*/,
           {0,0,0,0,0,0,0},
           {0,0,0,0,0,0,0},
           {0,0,0,0,0,0,0},
@@ -959,7 +959,18 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
           {GNSSENTRY_C5DATA,GNSSENTRY_L5DATA,GNSSENTRY_D5DATA,
           GNSSENTRY_S5DATA,GNSSDF2_LOCKLOSSL5,GPS_WAVELENGTH_L5,"5Q"},
           {GNSSENTRY_C5DATA,GNSSENTRY_L5DATA,GNSSENTRY_D5DATA,
-          GNSSENTRY_S5DATA,GNSSDF2_LOCKLOSSL5,GPS_WAVELENGTH_L5,"5X"}
+          GNSSENTRY_S5DATA,GNSSDF2_LOCKLOSSL5,GPS_WAVELENGTH_L5,"5X"},
+          {0,0,0,0,0,0,0},
+          {0,0,0,0,0,0,0},
+          {0,0,0,0,0,0,0},
+          {0,0,0,0,0,0,0},
+          {0,0,0,0,0,0,0},
+          {GNSSENTRY_C1DATA,GNSSENTRY_L1CDATA,GNSSENTRY_D1CDATA,
+          GNSSENTRY_S1CDATA,GNSSDF2_LOCKLOSSL1,0.0,"1S"},
+          {GNSSENTRY_C1DATA,GNSSENTRY_L1CDATA,GNSSENTRY_D1CDATA,
+          GNSSENTRY_S1CDATA,GNSSDF2_LOCKLOSSL1,0.0,"1L"},
+          {GNSSENTRY_C1DATA,GNSSENTRY_L1CDATA,GNSSENTRY_D1CDATA,
+          GNSSENTRY_S1CDATA,GNSSDF2_LOCKLOSSL1,0.0,"1X"}
         };
         /* NOTE: Uses 0.0, 1.0 for wavelength as sat index dependence is done later! */
         struct CodeData glo[RTCM3_MSM_NUMSIG] =
@@ -991,6 +1002,14 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
           {0,0,0,0,0,0,0},
           {0,0,0,0,0,0,0},
           {0,0,0,0,0,0,0},
+          {0,0,0,0,0,0,0},
+          {0,0,0,0,0,0,0},
+          {0,0,0,0,0,0,0},
+          {0,0,0,0,0,0,0},
+          {0,0,0,0,0,0,0},
+          {0,0,0,0,0,0,0},
+          {0,0,0,0,0,0,0},
+          {0,0,0,0,0,0,0},
           {0,0,0,0,0,0,0}
         };
         struct CodeData gal[RTCM3_MSM_NUMSIG] =
@@ -998,53 +1017,62 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
           {0,0,0,0,0,0,0},
           {GNSSENTRY_C1DATA,GNSSENTRY_L1CDATA,GNSSENTRY_D1CDATA,
           GNSSENTRY_S1CDATA,GNSSDF2_LOCKLOSSL1,GAL_WAVELENGTH_E1,"1C"},
-          {GNSSENTRY_C1DATA,GNSSENTRY_L1CDATA,GNSSENTRY_D1CDATA,
-          GNSSENTRY_S1CDATA,GNSSDF2_LOCKLOSSL1,GAL_WAVELENGTH_E1,"1A"},
+          {0,0,0,0,0,0,0}/*{GNSSENTRY_C1DATA,GNSSENTRY_L1CDATA,GNSSENTRY_D1CDATA,
+          GNSSENTRY_S1CDATA,GNSSDF2_LOCKLOSSL1,GAL_WAVELENGTH_E1,"1A"}*/,
           {GNSSENTRY_C1DATA,GNSSENTRY_L1CDATA,GNSSENTRY_D1CDATA,
           GNSSENTRY_S1CDATA,GNSSDF2_LOCKLOSSL1,GAL_WAVELENGTH_E1,"1B"},
-          {GNSSENTRY_C1DATA,GNSSENTRY_L1CDATA,GNSSENTRY_D1CDATA,
-          GNSSENTRY_S1CDATA,GNSSDF2_LOCKLOSSL1,GAL_WAVELENGTH_E1,"1X"},
-          {GNSSENTRY_C1DATA,GNSSENTRY_L1CDATA,GNSSENTRY_D1CDATA,
-          GNSSENTRY_S1CDATA,GNSSDF2_LOCKLOSSL1,GAL_WAVELENGTH_E1,"1Z"},
+          {0,0,0,0,0,0,0}/*{GNSSENTRY_C1DATA,GNSSENTRY_L1CDATA,GNSSENTRY_D1CDATA,
+          GNSSENTRY_S1CDATA,GNSSDF2_LOCKLOSSL1,GAL_WAVELENGTH_E1,"1X"}*/,
+          {0,0,0,0,0,0,0}/*{GNSSENTRY_C1DATA,GNSSENTRY_L1CDATA,GNSSENTRY_D1CDATA,
+          GNSSENTRY_S1CDATA,GNSSDF2_LOCKLOSSL1,GAL_WAVELENGTH_E1,"1Z"}*/,
           {0,0,0,0,0,0,0},
           {GNSSENTRY_C6DATA,GNSSENTRY_L6DATA,GNSSENTRY_D6DATA,
-          GNSSENTRY_S6DATA,GNSSDF2_LOCKLOSSE6,GAL_WAVELENGTH_E6,"6I"},
+          GNSSENTRY_S6DATA,GNSSDF2_LOCKLOSSE6,GAL_WAVELENGTH_E6,"6C"},
+          {0,0,0,0,0,0,0}/*{GNSSENTRY_C6DATA,GNSSENTRY_L6DATA,GNSSENTRY_D6DATA,
+          GNSSENTRY_S6DATA,GNSSDF2_LOCKLOSSE6,GAL_WAVELENGTH_E6,"6A"}*/,
           {GNSSENTRY_C6DATA,GNSSENTRY_L6DATA,GNSSENTRY_D6DATA,
-          GNSSENTRY_S6DATA,GNSSDF2_LOCKLOSSE6,GAL_WAVELENGTH_E6,"6Q"},
-          {GNSSENTRY_C6DATA,GNSSENTRY_L6DATA,GNSSENTRY_D6DATA,
-          GNSSENTRY_S6DATA,GNSSDF2_LOCKLOSSE6,GAL_WAVELENGTH_E6,"6I"},
-          {GNSSENTRY_C6DATA,GNSSENTRY_L6DATA,GNSSENTRY_D6DATA,
-          GNSSENTRY_S6DATA,GNSSDF2_LOCKLOSSE6,GAL_WAVELENGTH_E6,"6Q"},
-          {GNSSENTRY_C6DATA,GNSSENTRY_L6DATA,GNSSENTRY_D6DATA,
-          GNSSENTRY_S6DATA,GNSSDF2_LOCKLOSSE6,GAL_WAVELENGTH_E6,"6X"},
+          GNSSENTRY_S6DATA,GNSSDF2_LOCKLOSSE6,GAL_WAVELENGTH_E6,"6B"},
+          {0,0,0,0,0,0,0}/*{GNSSENTRY_C6DATA,GNSSENTRY_L6DATA,GNSSENTRY_D6DATA,
+          GNSSENTRY_S6DATA,GNSSDF2_LOCKLOSSE6,GAL_WAVELENGTH_E6,"6X"}*/,
+          {0,0,0,0,0,0,0}/*{GNSSENTRY_C6DATA,GNSSENTRY_L6DATA,GNSSENTRY_D6DATA,
+          GNSSENTRY_S6DATA,GNSSDF2_LOCKLOSSE6,GAL_WAVELENGTH_E6,"6Z"}*/,
           {0,0,0,0,0,0,0},
           {GNSSENTRY_C5BDATA,GNSSENTRY_L5BDATA,GNSSENTRY_D5BDATA,
           GNSSENTRY_S5BDATA,GNSSDF2_LOCKLOSSE5B,GAL_WAVELENGTH_E5B,"7I"},
           {GNSSENTRY_C5BDATA,GNSSENTRY_L5BDATA,GNSSENTRY_D5BDATA,
           GNSSENTRY_S5BDATA,GNSSDF2_LOCKLOSSE5B,GAL_WAVELENGTH_E5B,"7Q"},
-          {GNSSENTRY_C5BDATA,GNSSENTRY_L5BDATA,GNSSENTRY_D5BDATA,
-          GNSSENTRY_S5BDATA,GNSSDF2_LOCKLOSSE5B,GAL_WAVELENGTH_E5B,"7X"},
+          {0,0,0,0,0,0,0}/*{GNSSENTRY_C5BDATA,GNSSENTRY_L5BDATA,GNSSENTRY_D5BDATA,
+          GNSSENTRY_S5BDATA,GNSSDF2_LOCKLOSSE5B,GAL_WAVELENGTH_E5B,"7X"}*/,
           {0,0,0,0,0,0,0},
           {GNSSENTRY_C5ABDATA,GNSSENTRY_L5ABDATA,GNSSENTRY_D5ABDATA,
           GNSSENTRY_S5ABDATA,GNSSDF2_LOCKLOSSE5AB,GAL_WAVELENGTH_E5AB,"8I"},
           {GNSSENTRY_C5ABDATA,GNSSENTRY_L5ABDATA,GNSSENTRY_D5ABDATA,
           GNSSENTRY_S5ABDATA,GNSSDF2_LOCKLOSSE5AB,GAL_WAVELENGTH_E5AB,"8Q"},
-          {GNSSENTRY_C5ABDATA,GNSSENTRY_L5ABDATA,GNSSENTRY_D5ABDATA,
-          GNSSENTRY_S5ABDATA,GNSSDF2_LOCKLOSSE5AB,GAL_WAVELENGTH_E5AB,"8X"},
+          {0,0,0,0,0,0,0}/*{GNSSENTRY_C5ABDATA,GNSSENTRY_L5ABDATA,GNSSENTRY_D5ABDATA,
+          GNSSENTRY_S5ABDATA,GNSSDF2_LOCKLOSSE5AB,GAL_WAVELENGTH_E5AB,"8X"}*/,
           {0,0,0,0,0,0,0},
           {GNSSENTRY_C5DATA,GNSSENTRY_L5DATA,GNSSENTRY_D5DATA,
           GNSSENTRY_S5DATA,GNSSDF2_LOCKLOSSL5,GAL_WAVELENGTH_E5A,"5I"},
           {GNSSENTRY_C5DATA,GNSSENTRY_L5DATA,GNSSENTRY_D5DATA,
           GNSSENTRY_S5DATA,GNSSDF2_LOCKLOSSL5,GAL_WAVELENGTH_E5A,"5Q"},
-          {GNSSENTRY_C5DATA,GNSSENTRY_L5DATA,GNSSENTRY_D5DATA,
-          GNSSENTRY_S5DATA,GNSSDF2_LOCKLOSSL5,GAL_WAVELENGTH_E5A,"5X"},
+          {0,0,0,0,0,0,0}/*{GNSSENTRY_C5DATA,GNSSENTRY_L5DATA,GNSSENTRY_D5DATA,
+          GNSSENTRY_S5DATA,GNSSDF2_LOCKLOSSL5,GAL_WAVELENGTH_E5A,"5X"}*/,
+          {0,0,0,0,0,0,0},
+          {0,0,0,0,0,0,0},
+          {0,0,0,0,0,0,0},
+          {0,0,0,0,0,0,0},
+          {0,0,0,0,0,0,0},
+          {0,0,0,0,0,0,0},
+          {0,0,0,0,0,0,0},
+          {0,0,0,0,0,0,0},
         };
 
         int sys = RTCM3_MSM_GPS, i=0, count, j, old = 0, wasnoamb = 0;
         int syncf, sigmask, numsat = 0, numsig = 0, numcells;
         uint64_t satmask, cellmask, ui;
         double rrmod[RTCM3_MSM_NUMSAT];
-        int rrint[RTCM3_MSM_NUMSAT], rdop[RTCM3_MSM_NUMSAT];
+        int rrint[RTCM3_MSM_NUMSAT], rdop[RTCM3_MSM_NUMSAT],
+        extsat[RTCM3_MSM_NUMSAT];
         int ll[RTCM3_MSM_NUMCELLS];
         double cnr[RTCM3_MSM_NUMCELLS];
         double cp[RTCM3_MSM_NUMCELLS], psr[RTCM3_MSM_NUMCELLS],
@@ -1086,7 +1114,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         gnss->week = handle->GPSWeek;
 
         GETBITS(syncf, 1)
-        SKIPBITS(3+7+1)
+        SKIPBITS(3+7+2+2+1+3)
         GETBITS64(satmask, RTCM3_MSM_NUMSAT)
 
         /* http://gurmeetsingh.wordpress.com/2008/08/05/fast-bit-counting-routines/ */
@@ -1103,19 +1131,21 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         case 1: case 2: case 3:
           ++wasnoamb;
           for(j = numsat; j--;)
-            GETFLOAT(rrmod[j], 10, 1/1024.0)
+            GETFLOAT(rrmod[j], 10, 1.0/1024.0)
           break;
         case 4: case 6:
           for(j = numsat; j--;)
             GETBITS(rrint[j], 8)
           for(j = numsat; j--;)
-            GETFLOAT(rrmod[j], 10, 1/1024.0)
+            GETFLOAT(rrmod[j], 10, 1.0/1024.0)
           break;
         case 5: case 7:
           for(j = numsat; j--;)
             GETBITS(rrint[j], 8)
           for(j = numsat; j--;)
-            GETFLOAT(rrmod[j], 10, 1/1024.0)
+            GETBITS(extsat[j], 4)
+          for(j = numsat; j--;)
+            GETFLOAT(rrmod[j], 10, 1.0/1024.0)
           for(j = numsat; j--;)
             GETBITSSIGN(rdop[j], 14)
           break;
@@ -1129,12 +1159,12 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
           case 1:
             for(count = numcells; count--;)
               if(cellmask & (UINT64(1)<<count))
-                GETFLOATSIGN(psr[count], 15, 0.02)
+                GETFLOATSIGN(psr[count], 15, 1.0/(1<<24))
             break;
           case 2:
             for(count = numcells; count--;)
               if(cellmask & (UINT64(1)<<count))
-                GETFLOATSIGN(cp[count], 20, 1/256.0)
+                GETFLOATSIGN(cp[count], 22, 1.0/(1<<29))
             for(count = numcells; count--;)
               if(cellmask & (UINT64(1)<<count))
                 GETBITS(ll[count], 4)
@@ -1142,10 +1172,10 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
           case 3:
             for(count = numcells; count--;)
               if(cellmask & (UINT64(1)<<count))
-                GETFLOATSIGN(psr[count], 15, 0.02)
+                GETFLOATSIGN(psr[count], 15, 1.0/(1<<24))
             for(count = numcells; count--;)
               if(cellmask & (UINT64(1)<<count))
-                GETFLOATSIGN(cp[count], 20, 1/256.0)
+                GETFLOATSIGN(cp[count], 22, 1.0/(1<<29))
             for(count = numcells; count--;)
               if(cellmask & (UINT64(1)<<count))
                 GETBITS(ll[count], 4)
@@ -1153,10 +1183,10 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
           case 4:
             for(count = numcells; count--;)
               if(cellmask & (UINT64(1)<<count))
-                GETFLOATSIGN(psr[count], 15, 0.02)
+                GETFLOATSIGN(psr[count], 15, 1.0/(1<<24))
             for(count = numcells; count--;)
               if(cellmask & (UINT64(1)<<count))
-                GETFLOATSIGN(cp[count], 20, 1/256.0)
+                GETFLOATSIGN(cp[count], 22, 1.0/(1<<29))
             for(count = numcells; count--;)
               if(cellmask & (UINT64(1)<<count))
                 GETBITS(ll[count], 4)
@@ -1167,10 +1197,10 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
           case 5:
             for(count = numcells; count--;)
               if(cellmask & (UINT64(1)<<count))
-                GETFLOATSIGN(psr[count], 15, 0.02)
+                GETFLOATSIGN(psr[count], 15, 1.0/(1<<24))
             for(count = numcells; count--;)
               if(cellmask & (UINT64(1)<<count))
-                GETFLOATSIGN(cp[count], 20, 1/256.0)
+                GETFLOATSIGN(cp[count], 22, 1.0/(1<<29))
             for(count = numcells; count--;)
               if(cellmask & (UINT64(1)<<count))
                 GETBITS(ll[count], 4)
@@ -1184,23 +1214,24 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
           case 6:
             for(count = numcells; count--;)
               if(cellmask & (UINT64(1)<<count))
-                GETFLOATSIGN(psr[count], 20, 0.001)
+                GETFLOATSIGN(psr[count], 20, 1.0/(1<<29))
             for(count = numcells; count--;)
               if(cellmask & (UINT64(1)<<count))
-                GETFLOATSIGN(cp[count], 22, 1/1024.0)
+                GETFLOATSIGN(cp[count], 24, 1.0/(1U<<31))
             for(count = numcells; count--;)
               if(cellmask & (UINT64(1)<<count))
                 GETBITS(ll[count], 10)
             for(count = numcells; count--;)
               if(cellmask & (UINT64(1)<<count))
                 GETFLOAT(cnr[count], 10, 0.1)
+            break;
           case 7:
             for(count = numcells; count--;)
               if(cellmask & (UINT64(1)<<count))
-                GETFLOATSIGN(psr[count], 20, 0.001)
+                GETFLOATSIGN(psr[count], 20, 1.0/(1<<29))
             for(count = numcells; count--;)
               if(cellmask & (UINT64(1)<<count))
-                GETFLOATSIGN(cp[count], 22, 1/1024.0)
+                GETFLOATSIGN(cp[count], 24, 1.0/(1U<<31))
             for(count = numcells; count--;)
               if(cellmask & (UINT64(1)<<count))
                 GETBITS(ll[count], 10)
@@ -1271,17 +1302,17 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                 switch(type % 10)
                 {
                 case 1:
-                  if(psr[count] > -327.68)
+                  if(psr[count] > -1.0/(1<<10))
                   {
-                    gnss->measdata[num][cd.typeR] = psr[count]
+                    gnss->measdata[num][cd.typeR] = psr[count]*LIGHTSPEED/1000.0
                     +(rrmod[numsat])*LIGHTSPEED/1000.0;
                     gnss->dataflags[num] |= (1<<cd.typeR);
                   }
                   break;
                 case 2:
-                  if(wl && cp[count] > -2048.0)
+                  if(wl && cp[count] > -1.0/(1<<8))
                   {
-                    gnss->measdata[num][cd.typeP] = cp[count]
+                    gnss->measdata[num][cd.typeP] = cp[count]*LIGHTSPEED/1000.0
                     +(rrmod[numsat])*LIGHTSPEED/1000.0/wl;
                     if(handle->lastlockmsm[j][i] != ll[count])
                     {
@@ -1292,16 +1323,16 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                   }
                   break;
                 case 3:
-                  if(psr[count] > -327.68)
+                  if(psr[count] > -1.0/(1<<10))
                   {
-                    gnss->measdata[num][cd.typeR] = psr[count]
+                    gnss->measdata[num][cd.typeR] = psr[count]*LIGHTSPEED/1000.0
                     +(rrmod[numsat])*LIGHTSPEED/1000.0;
                     gnss->dataflags[num] |= (1<<cd.typeR);
                   }
 
-                  if(wl && cp[count] > -2048.0)
+                  if(wl && cp[count] > -1.0/(1<<8))
                   {
-                    gnss->measdata[num][cd.typeP] = cp[count]
+                    gnss->measdata[num][cd.typeP] = cp[count]*LIGHTSPEED/1000.0
                     +(rrmod[numsat]+rrint[numsat])*LIGHTSPEED/1000.0/wl;
                     if(handle->lastlockmsm[j][i] != ll[count])
                     {
@@ -1312,16 +1343,16 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                   }
                   break;
                 case 4:
-                  if(psr[count] > -327.68)
+                  if(psr[count] > -1.0/(1<<10))
                   {
-                    gnss->measdata[num][cd.typeR] = psr[count]
+                    gnss->measdata[num][cd.typeR] = psr[count]*LIGHTSPEED/1000.0
                     +(rrmod[numsat]+rrint[numsat])*LIGHTSPEED/1000.0;
                     gnss->dataflags[num] |= (1<<cd.typeR);
                   }
 
-                  if(wl && cp[count] > -2048.0)
+                  if(wl && cp[count] > -1.0/(1<<8))
                   {
-                    gnss->measdata[num][cd.typeP] = cp[count]
+                    gnss->measdata[num][cd.typeP] = cp[count]*LIGHTSPEED/1000.0
                     +(rrmod[numsat]+rrint[numsat])*LIGHTSPEED/1000.0/wl;
                     if(handle->lastlockmsm[j][i] != ll[count])
                     {
@@ -1335,16 +1366,16 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                     gnss->dataflags[num] |= (1<<cd.typeS);
                   break;
                 case 5:
-                  if(psr[count] > -327.68)
+                  if(psr[count] > -1.0/(1<<10))
                   {
-                    gnss->measdata[num][cd.typeR] = psr[count]
+                    gnss->measdata[num][cd.typeR] = psr[count]*LIGHTSPEED/1000.0
                     +(rrmod[numsat]+rrint[numsat])*LIGHTSPEED/1000.0;
                     gnss->dataflags[num] |= (1<<cd.typeR);
                   }
 
-                  if(wl && cp[count] > -2048.0)
+                  if(wl && cp[count] > -1.0/(1<<8))
                   {
-                    gnss->measdata[num][cd.typeP] = cp[count]
+                    gnss->measdata[num][cd.typeP] = cp[count]*LIGHTSPEED/1000.0
                     +(rrmod[numsat]+rrint[numsat])*LIGHTSPEED/1000.0/wl;
                     if(handle->lastlockmsm[j][i] != ll[count])
                     {
@@ -1365,16 +1396,16 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                   }
                   break;
                 case 6:
-                  if(psr[count] > -524.288)
+                  if(psr[count] > -1.0/(1<<10))
                   {
-                    gnss->measdata[num][cd.typeR] = psr[count]
+                    gnss->measdata[num][cd.typeR] = psr[count]*LIGHTSPEED/1000.0
                     +(rrmod[numsat]+rrint[numsat])*LIGHTSPEED/1000.0;
                     gnss->dataflags[num] |= (1<<cd.typeR);
                   }
 
-                  if(wl && cp[count] > -2048.0)
+                  if(wl && cp[count] > -1.0/(1<<8))
                   {
-                    gnss->measdata[num][cd.typeP] = cp[count]
+                    gnss->measdata[num][cd.typeP] = cp[count]*LIGHTSPEED/1000.0
                     +(rrmod[numsat]+rrint[numsat])*LIGHTSPEED/1000.0/wl;
                     if(handle->lastlockmsm[j][i] != ll[count])
                     {
@@ -1388,16 +1419,16 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                     gnss->dataflags[num] |= (1<<cd.typeS);
                   break;
                 case 7:
-                  if(psr[count] > -524.288)
+                  if(psr[count] > -1.0/(1<<10))
                   {
-                    gnss->measdata[num][cd.typeR] = psr[count]
+                    gnss->measdata[num][cd.typeR] = psr[count]*LIGHTSPEED/1000.0
                     +(rrmod[numsat]+rrint[numsat])*LIGHTSPEED/1000.0;
                     gnss->dataflags[num] |= (1<<cd.typeR);
                   }
 
-                  if(wl && cp[count] > -2048.0)
+                  if(wl && cp[count] > -1.0/(1<<8))
                   {
-                    gnss->measdata[num][cd.typeP] = cp[count]
+                    gnss->measdata[num][cd.typeP] = cp[count]*LIGHTSPEED/1000.0
                     +(rrmod[numsat]+rrint[numsat])*LIGHTSPEED/1000.0/wl;
                     if(handle->lastlockmsm[j][i] != ll[count])
                     {
