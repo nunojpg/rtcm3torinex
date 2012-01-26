@@ -1272,7 +1272,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                   int k = handle->GLOFreq[RTCM3_MSM_NUMSAT-i-1];
                   if(!k && extsat[count] < 14)
                   {
-                    k = handle->Main.GLOFreq[RTCM3_MSM_NUMSAT-i-1]
+                    k = handle->GLOFreq[RTCM3_MSM_NUMSAT-i-1]
                     = 100+extsat[count]-7;
                   }
                   if(k)
