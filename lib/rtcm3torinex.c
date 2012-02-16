@@ -1073,7 +1073,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         double rrmod[RTCM3_MSM_NUMSAT];
         int rrint[RTCM3_MSM_NUMSAT], rdop[RTCM3_MSM_NUMSAT],
         extsat[RTCM3_MSM_NUMSAT];
-        int ll[RTCM3_MSM_NUMCELLS];
+        int ll[RTCM3_MSM_NUMCELLS], hc[RTCM3_MSM_NUMCELLS];
         double cnr[RTCM3_MSM_NUMCELLS];
         double cp[RTCM3_MSM_NUMCELLS], psr[RTCM3_MSM_NUMCELLS],
         dop[RTCM3_MSM_NUMCELLS];
@@ -1168,6 +1168,9 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
             for(count = numcells; count--;)
               if(cellmask & (UINT64(1)<<count))
                 GETBITS(ll[count], 4)
+            for(count = numcells; count--;)
+              if(cellmask & (UINT64(1)<<count))
+                GETBITS(hc[count], 1)
             break;
           case 3:
             for(count = numcells; count--;)
@@ -1179,6 +1182,9 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
             for(count = numcells; count--;)
               if(cellmask & (UINT64(1)<<count))
                 GETBITS(ll[count], 4)
+            for(count = numcells; count--;)
+              if(cellmask & (UINT64(1)<<count))
+                GETBITS(hc[count], 1)
             break;
           case 4:
             for(count = numcells; count--;)
@@ -1190,6 +1196,9 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
             for(count = numcells; count--;)
               if(cellmask & (UINT64(1)<<count))
                 GETBITS(ll[count], 4)
+            for(count = numcells; count--;)
+              if(cellmask & (UINT64(1)<<count))
+                GETBITS(hc[count], 1)
             for(count = numcells; count--;)
               if(cellmask & (UINT64(1)<<count))
                 GETBITS(cnr[count], 6)
@@ -1204,6 +1213,9 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
             for(count = numcells; count--;)
               if(cellmask & (UINT64(1)<<count))
                 GETBITS(ll[count], 4)
+            for(count = numcells; count--;)
+              if(cellmask & (UINT64(1)<<count))
+                GETBITS(hc[count], 1)
             for(count = numcells; count--;)
               if(cellmask & (UINT64(1)<<count))
                 GETFLOAT(cnr[count], 6, 1.0)
@@ -1223,6 +1235,9 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                 GETBITS(ll[count], 10)
             for(count = numcells; count--;)
               if(cellmask & (UINT64(1)<<count))
+                GETBITS(hc[count], 1)
+            for(count = numcells; count--;)
+              if(cellmask & (UINT64(1)<<count))
                 GETFLOAT(cnr[count], 10, 0.1)
             break;
           case 7:
@@ -1235,6 +1250,9 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
             for(count = numcells; count--;)
               if(cellmask & (UINT64(1)<<count))
                 GETBITS(ll[count], 10)
+            for(count = numcells; count--;)
+              if(cellmask & (UINT64(1)<<count))
+                GETBITS(hc[count], 1)
             for(count = numcells; count--;)
               if(cellmask & (UINT64(1)<<count))
                 GETFLOAT(cnr[count], 10, 0.1)
