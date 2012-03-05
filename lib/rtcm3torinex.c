@@ -1335,7 +1335,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                 case 2:
                   if(wl && cp[count] > -1.0/(1<<8))
                   {
-                    gnss->measdata[num][cd.typeP] = cp[count]*LIGHTSPEED/1000.0
+                    gnss->measdata[num][cd.typeP] = cp[count]*LIGHTSPEED/1000.0/wl
                     +(rrmod[numsat])*LIGHTSPEED/1000.0/wl;
                     if(handle->lastlockmsm[j][i] != ll[count])
                     {
@@ -1355,7 +1355,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
 
                   if(wl && cp[count] > -1.0/(1<<8))
                   {
-                    gnss->measdata[num][cd.typeP] = cp[count]*LIGHTSPEED/1000.0
+                    gnss->measdata[num][cd.typeP] = cp[count]*LIGHTSPEED/1000.0/wl
                     +(rrmod[numsat]+rrint[numsat])*LIGHTSPEED/1000.0/wl;
                     if(handle->lastlockmsm[j][i] != ll[count])
                     {
@@ -1375,7 +1375,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
 
                   if(wl && cp[count] > -1.0/(1<<8))
                   {
-                    gnss->measdata[num][cd.typeP] = cp[count]*LIGHTSPEED/1000.0
+                    gnss->measdata[num][cd.typeP] = cp[count]*LIGHTSPEED/1000.0/wl
                     +(rrmod[numsat]+rrint[numsat])*LIGHTSPEED/1000.0/wl;
                     if(handle->lastlockmsm[j][i] != ll[count])
                     {
@@ -1398,7 +1398,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
 
                   if(wl && cp[count] > -1.0/(1<<8))
                   {
-                    gnss->measdata[num][cd.typeP] = cp[count]*LIGHTSPEED/1000.0
+                    gnss->measdata[num][cd.typeP] = cp[count]*LIGHTSPEED/1000.0/wl
                     +(rrmod[numsat]+rrint[numsat])*LIGHTSPEED/1000.0/wl;
                     if(handle->lastlockmsm[j][i] != ll[count])
                     {
@@ -1428,7 +1428,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
 
                   if(wl && cp[count] > -1.0/(1<<8))
                   {
-                    gnss->measdata[num][cd.typeP] = cp[count]*LIGHTSPEED/1000.0
+                    gnss->measdata[num][cd.typeP] = cp[count]*LIGHTSPEED/1000.0/wl
                     +(rrmod[numsat]+rrint[numsat])*LIGHTSPEED/1000.0/wl;
                     if(handle->lastlockmsm[j][i] != ll[count])
                     {
@@ -1451,7 +1451,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
 
                   if(wl && cp[count] > -1.0/(1<<8))
                   {
-                    gnss->measdata[num][cd.typeP] = cp[count]*LIGHTSPEED/1000.0
+                    gnss->measdata[num][cd.typeP] = cp[count]*LIGHTSPEED/1000.0/wl
                     +(rrmod[numsat]+rrint[numsat])*LIGHTSPEED/1000.0/wl;
                     if(handle->lastlockmsm[j][i] != ll[count])
                     {
