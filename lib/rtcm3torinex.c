@@ -250,6 +250,7 @@ static const struct leapseconds leap[] = {
 {31, 12, 1998,32},
 {31, 12, 2005,33},
 {31, 12, 2008,34},
+{30, 06, 2012,35},
 {0,0,0,0} /* end marker */
 };
 #define LEAPSECONDS     15 /* only needed for approx. time */
