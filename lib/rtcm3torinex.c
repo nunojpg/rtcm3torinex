@@ -2132,6 +2132,7 @@ void HandleHeader(struct RTCM3ParserData *Parser)
     CHECKFLAGS(L6,L6)
     CHECKFLAGS(D6,D6)
     CHECKFLAGS(S6,S6)
+    /* Skip C1N and SAIF for RINEX2! */
 
     hdata.data.named.typesofobs = buffer;
     i = 1+snprintf(buffer, buffersize,
