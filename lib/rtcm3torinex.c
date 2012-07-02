@@ -254,7 +254,7 @@ static const struct leapseconds leap[] = {
 {30, 06, 2012,35},
 {0,0,0,0} /* end marker */
 };
-#define LEAPSECONDS     15 /* only needed for approx. time */
+#define LEAPSECONDS     16 /* only needed for approx. time */
 #define GPSLEAPSTART    19 /* 19 leap seconds existed at 6.1.1980 */
 
 static int longyear(int year, int month)
