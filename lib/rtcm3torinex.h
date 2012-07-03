@@ -22,7 +22,7 @@
   or read http://www.gnu.org/licenses/gpl.txt
 */
 
-#define RTCM3TORINEX_VERSION "1.50"
+#define RTCM3TORINEX_VERSION "2"
 
 #include <stdio.h>
 
@@ -50,13 +50,15 @@
 #define RTCM3_MSM_NUMSAT      64
 #define RTCM3_MSM_NUMCELLS    64
 
-/* system identifiers, use start PRN as value */
-#define RTCM3_MSM_GPS     PRN_GPS_START
-#define RTCM3_MSM_GLONASS PRN_GLONASS_START
-#define RTCM3_MSM_GALILEO PRN_GALILEO_START
-#define RTCM3_MSM_SBAS    PRN_SBAS_START
-#define RTCM3_MSM_QZSS    PRN_QZSS_START
-#define RTCM3_MSM_COMPASS PRN_COMPASS_START
+/* system identifiers */
+#define RTCM3_MSM_GPS     0
+#define RTCM3_MSM_GLONASS 1
+#define RTCM3_MSM_GALILEO 2
+#define RTCM3_MSM_SBAS    3
+#define RTCM3_MSM_QZSS    4
+#define RTCM3_MSM_COMPASS 5
+
+#define RTCM3_MSM_NUMSYS  6
 
 #define GNSSENTRY_CODE    0
 #define GNSSENTRY_PHASE   1
@@ -411,6 +413,13 @@ struct galileoephemeris {
   int    E5aHS;
 };
 
+struct DataInfo {
+  long long flags[RINEXENTRY_NUMBER];
+  int       pos[RINEXENTRY_NUMBER];
+  int       numtypes;
+  char      type[GNSSENTRY_NUMBER];
+};
+
 struct RTCM3ParserData {
   unsigned char Message[2048]; /* input-buffer */
   int    MessageSize;   /* current buffer size */
@@ -442,33 +451,19 @@ struct RTCM3ParserData {
   int    secofday;
   int    leapsec;
 #endif /* NO_RTCM3_MAIN */
-  int    datapos[RINEXENTRY_NUMBER];
-  long long dataflag[RINEXENTRY_NUMBER];
-  /* for RINEX2 GPS and GLO are both handled in GPS */
-  int    dataposGPS[RINEXENTRY_NUMBER]; /* SBAS has same entries */
-  long long dataflagGPS[RINEXENTRY_NUMBER];
-  int    dataposGLO[RINEXENTRY_NUMBER]; /* only used for RINEX3 */
-  long long dataflagGLO[RINEXENTRY_NUMBER];
-  int    dataposGAL[RINEXENTRY_NUMBER]; /* only used for RINEX3 */
-  long long dataflagGAL[RINEXENTRY_NUMBER];
-  int    dataposQZS[RINEXENTRY_NUMBER]; /* only used for RINEX3 */
-  long long dataflagQZS[RINEXENTRY_NUMBER];
-  int    dataposCOM[RINEXENTRY_NUMBER]; /* only used for RINEX3 */
-  long long dataflagCOM[RINEXENTRY_NUMBER];
-  int    numdatatypesGPS;
-  int    numdatatypesGLO; /* only used for RINEX3 */
-  int    numdatatypesGAL; /* only used for RINEX3 */
-  int    numdatatypesQZS; /* only used for RINEX3 */
-  int    numdatatypesCOM; /* only used for RINEX3 */
-  int    validwarning;
-  int    init;
-  int    startflags;
-  int    rinex3;
+  int          pos[RINEXENTRY_NUMBER];
+  long long    flags[RINEXENTRY_NUMBER];
+  /* For RINEX2 only field GPS is used */
+  struct DataInfo info[RTCM3_MSM_NUMSYS];
+  int          validwarning;
+  int          init;
+  int          startflags;
+  int          rinex3;
   const char * headerfile;
   const char * glonassephemeris;
   const char * gpsephemeris;
-  FILE *glonassfile;
-  FILE *gpsfile;
+  FILE *       glonassfile;
+  FILE *       gpsfile;
 };
 
 #ifndef PRINTFARG
