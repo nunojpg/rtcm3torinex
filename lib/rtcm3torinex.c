@@ -1195,6 +1195,9 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
           start = PRN_GLONASS_START;
         }
 
+        for(i = 0; i < RTCM3_MSM_NUMSAT; ++i)
+          extsat[i] = 15;
+
         switch(sys)
         {
         case RTCM3_MSM_COMPASS:
@@ -1463,7 +1466,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                   {
                     gnss->measdata[num][cd.typeR] = psr[count]*LIGHTSPEED/1000.0
                     +(rrmod[numsat])*LIGHTSPEED/1000.0;
-                    gnss->dataflags[num] |= (1<<cd.typeR);
+                    gnss->dataflags[num] |= (1LL<<cd.typeR);
                   }
                   break;
                 case 2:
@@ -1476,7 +1479,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                       gnss->dataflags2[num] |= cd.lock;
                       handle->lastlockmsm[j][i] = ll[count];
                     }
-                    gnss->dataflags[num] |= (1<<cd.typeP);
+                    gnss->dataflags[num] |= (1LL<<cd.typeP);
                   }
                   break;
                 case 3:
@@ -1484,7 +1487,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                   {
                     gnss->measdata[num][cd.typeR] = psr[count]*LIGHTSPEED/1000.0
                     +(rrmod[numsat])*LIGHTSPEED/1000.0;
-                    gnss->dataflags[num] |= (1<<cd.typeR);
+                    gnss->dataflags[num] |= (1LL<<cd.typeR);
                   }
 
                   if(wl && cp[count] > -1.0/(1<<8))
@@ -1496,7 +1499,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                       gnss->dataflags2[num] |= cd.lock;
                       handle->lastlockmsm[j][i] = ll[count];
                     }
-                    gnss->dataflags[num] |= (1<<cd.typeP);
+                    gnss->dataflags[num] |= (1LL<<cd.typeP);
                   }
                   break;
                 case 4:
@@ -1504,7 +1507,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                   {
                     gnss->measdata[num][cd.typeR] = psr[count]*LIGHTSPEED/1000.0
                     +(rrmod[numsat]+rrint[numsat])*LIGHTSPEED/1000.0;
-                    gnss->dataflags[num] |= (1<<cd.typeR);
+                    gnss->dataflags[num] |= (1LL<<cd.typeR);
                   }
 
                   if(wl && cp[count] > -1.0/(1<<8))
@@ -1516,18 +1519,18 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                       gnss->dataflags2[num] |= cd.lock;
                       handle->lastlockmsm[j][i] = ll[count];
                     }
-                    gnss->dataflags[num] |= (1<<cd.typeP);
+                    gnss->dataflags[num] |= (1LL<<cd.typeP);
                   }
 
                   gnss->measdata[num][cd.typeS] = cnr[count];
-                    gnss->dataflags[num] |= (1<<cd.typeS);
+                    gnss->dataflags[num] |= (1LL<<cd.typeS);
                   break;
                 case 5:
                   if(psr[count] > -1.0/(1<<10))
                   {
                     gnss->measdata[num][cd.typeR] = psr[count]*LIGHTSPEED/1000.0
                     +(rrmod[numsat]+rrint[numsat])*LIGHTSPEED/1000.0;
-                    gnss->dataflags[num] |= (1<<cd.typeR);
+                    gnss->dataflags[num] |= (1LL<<cd.typeR);
                   }
 
                   if(wl && cp[count] > -1.0/(1<<8))
@@ -1539,7 +1542,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                       gnss->dataflags2[num] |= cd.lock;
                       handle->lastlockmsm[j][i] = ll[count];
                     }
-                    gnss->dataflags[num] |= (1<<cd.typeP);
+                    gnss->dataflags[num] |= (1LL<<cd.typeP);
                   }
 
                   gnss->measdata[num][cd.typeS] = cnr[count];
@@ -1549,7 +1552,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                   {
                     gnss->measdata[num][cd.typeD] = -(dop[count]
                     +rdop[numsat])/wl;
-                    gnss->dataflags[num] |= (1<<cd.typeD);
+                    gnss->dataflags[num] |= (1LL<<cd.typeD);
                   }
                   break;
                 case 6:
@@ -1557,7 +1560,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                   {
                     gnss->measdata[num][cd.typeR] = psr[count]*LIGHTSPEED/1000.0
                     +(rrmod[numsat]+rrint[numsat])*LIGHTSPEED/1000.0;
-                    gnss->dataflags[num] |= (1<<cd.typeR);
+                    gnss->dataflags[num] |= (1LL<<cd.typeR);
                   }
 
                   if(wl && cp[count] > -1.0/(1<<8))
@@ -1569,18 +1572,18 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                       gnss->dataflags2[num] |= cd.lock;
                       handle->lastlockmsm[j][i] = ll[count];
                     }
-                    gnss->dataflags[num] |= (1<<cd.typeP);
+                    gnss->dataflags[num] |= (1LL<<cd.typeP);
                   }
 
                   gnss->measdata[num][cd.typeS] = cnr[count];
-                    gnss->dataflags[num] |= (1<<cd.typeS);
+                    gnss->dataflags[num] |= (1LL<<cd.typeS);
                   break;
                 case 7:
                   if(psr[count] > -1.0/(1<<10))
                   {
                     gnss->measdata[num][cd.typeR] = psr[count]*LIGHTSPEED/1000.0
                     +(rrmod[numsat]+rrint[numsat])*LIGHTSPEED/1000.0;
-                    gnss->dataflags[num] |= (1<<cd.typeR);
+                    gnss->dataflags[num] |= (1LL<<cd.typeR);
                   }
 
                   if(wl && cp[count] > -1.0/(1<<8))
@@ -1592,17 +1595,17 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                       gnss->dataflags2[num] |= cd.lock;
                       handle->lastlockmsm[j][i] = ll[count];
                     }
-                    gnss->dataflags[num] |= (1<<cd.typeP);
+                    gnss->dataflags[num] |= (1LL<<cd.typeP);
                   }
 
                   gnss->measdata[num][cd.typeS] = cnr[count];
-                    gnss->dataflags[num] |= (1<<cd.typeS);
+                    gnss->dataflags[num] |= (1LL<<cd.typeS);
 
                   if(dop[count] > -1.6384)
                   {
                     gnss->measdata[num][cd.typeD] = -(dop[count]
                     +rdop[numsat])/wl;
-                    gnss->dataflags[num] |= (1<<cd.typeD);
+                    gnss->dataflags[num] |= (1LL<<cd.typeD);
                   }
                   break;
                 }
@@ -1965,14 +1968,14 @@ void HandleHeader(struct RTCM3ParserData *Parser)
     CHECKFLAGSNEW(GPS, L5,  L5)
     CHECKFLAGSNEW(GPS, D5,  D5)
     CHECKFLAGSNEW(GPS, S5,  S5)
-    CHECKFLAGSNEW(GPS, P2,  C2P)
-    CHECKFLAGSNEW(GPS, L2P, L2P)
-    CHECKFLAGSNEW(GPS, D2P, D2P)
-    CHECKFLAGSNEW(GPS, S2P, S2P)
-    CHECKFLAGSNEW(GPS, C2,  C2X)
-    CHECKFLAGSNEW(GPS, L2C, L2X)
-    CHECKFLAGSNEW(GPS, D2C, D2X)
-    CHECKFLAGSNEW(GPS, S2C, S2X)
+    CHECKFLAGSNEW(GPS, P2,  C2W)
+    CHECKFLAGSNEW(GPS, L2P, L2W)
+    CHECKFLAGSNEW(GPS, D2P, D2W)
+    CHECKFLAGSNEW(GPS, S2P, S2W)
+    CHECKFLAGSNEW(GPS, C2,  C2)
+    CHECKFLAGSNEW(GPS, L2C, L2)
+    CHECKFLAGSNEW(GPS, D2C, D2)
+    CHECKFLAGSNEW(GPS, S2C, S2)
     CHECKFLAGSNEW(GPS, C1N, C1)
     CHECKFLAGSNEW(GPS, L1N, L1)
     CHECKFLAGSNEW(GPS, D1N, D1)
@@ -2555,7 +2558,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
             {
               for(j = 0; j < Parser->info[RTCM3_MSM_GLONASS].numtypes; ++j)
               {
-                int df = Parser->info[RTCM3_MSM_GLONASS].flags[j];
+                long long df = Parser->info[RTCM3_MSM_GLONASS].flags[j];
                 int pos = Parser->info[RTCM3_MSM_GLONASS].pos[j];
                 if((Parser->Data.dataflags[i] & df)
                 && !isnan(Parser->Data.measdata[i][pos])
@@ -2592,7 +2595,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
             {
               for(j = 0; j < Parser->info[RTCM3_MSM_GALILEO].numtypes; ++j)
               {
-                int df = Parser->info[RTCM3_MSM_GALILEO].flags[j];
+                long long df = Parser->info[RTCM3_MSM_GALILEO].flags[j];
                 int pos = Parser->info[RTCM3_MSM_GALILEO].pos[j];
                 if((Parser->Data.dataflags[i] & df)
                 && !isnan(Parser->Data.measdata[i][pos])
@@ -2647,7 +2650,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
             {
               for(j = 0; j < Parser->info[RTCM3_MSM_COMPASS].numtypes; ++j)
               {
-                int df = Parser->info[RTCM3_MSM_COMPASS].flags[j];
+                long long df = Parser->info[RTCM3_MSM_COMPASS].flags[j];
                 int pos = Parser->info[RTCM3_MSM_COMPASS].pos[j];
                 if((Parser->Data.dataflags[i] & df)
                 && !isnan(Parser->Data.measdata[i][pos])
@@ -2687,7 +2690,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
             {
               for(j = 0; j < Parser->info[RTCM3_MSM_QZSS].numtypes; ++j)
               {
-                int df = Parser->info[RTCM3_MSM_QZSS].flags[j];
+                long long df = Parser->info[RTCM3_MSM_QZSS].flags[j];
                 int pos = Parser->info[RTCM3_MSM_QZSS].pos[j];
                 if((Parser->Data.dataflags[i] & df)
                 && !isnan(Parser->Data.measdata[i][pos])
@@ -2730,7 +2733,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
             {
               for(j = 0; j < Parser->info[RTCM3_MSM_SBAS].numtypes; ++j)
               {
-                int df = Parser->info[RTCM3_MSM_SBAS].flags[j];
+                long long df = Parser->info[RTCM3_MSM_SBAS].flags[j];
                 int pos = Parser->info[RTCM3_MSM_SBAS].pos[j];
                 if((Parser->Data.dataflags[i] & df)
                 && !isnan(Parser->Data.measdata[i][pos])
@@ -2767,9 +2770,9 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
             {
               for(j = 0; j < Parser->info[RTCM3_MSM_GPS].numtypes; ++j)
               {
-                int df = Parser->info[RTCM3_MSM_GPS].flags[j];
+                long long df = Parser->info[RTCM3_MSM_GPS].flags[j];
                 int pos = Parser->info[RTCM3_MSM_GPS].pos[j];
-                if((Parser->Data.dataflags[pos] & df)
+                if((Parser->Data.dataflags[i] & df)
                 && !isnan(Parser->Data.measdata[i][pos])
                 && !isinf(Parser->Data.measdata[i][pos])
                 && (Parser->Data.codetype[i][pos]
@@ -2891,7 +2894,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
             for(j = 0; j < Parser->info[RTCM3_MSM_GPS].numtypes; ++j)
             {
               int v = 0;
-              int df = Parser->flags[j];
+              long long df = Parser->flags[j];
               int pos = Parser->pos[j];
               if((Parser->Data.dataflags[i] & df)
               && !isnan(Parser->Data.measdata[i][pos])
