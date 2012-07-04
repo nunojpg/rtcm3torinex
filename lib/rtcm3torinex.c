@@ -1444,7 +1444,10 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                 if(num == gnss->numsats)
                   gnss->satellites[gnss->numsats++] = fullsat;
 
-                gnss->codetype[num] = cd.code;
+                gnss->codetype[num][cd.typeR] = 
+                gnss->codetype[num][cd.typeP] = 
+                gnss->codetype[num][cd.typeD] = 
+                gnss->codetype[num][cd.typeS] = cd.code;
                 if(!handle->info[sys].type[cd.typeR])
                 {
                   handle->info[sys].type[cd.typeR] = 
@@ -1947,6 +1950,8 @@ void HandleHeader(struct RTCM3ParserData *Parser)
     i = 1+snprintf(buffer, buffersize,
     "S  %3d%-52.52s  SYS / # / OBS TYPES", Parser->info[RTCM3_MSM_SBAS].numtypes, tbuffer);
     buffer += i; buffersize -= i;
+
+    tbufferpos = 0;
 
     CHECKFLAGSNEW(GPS, C1,  C1C)
     CHECKFLAGSNEW(GPS, L1C, L1C)
@@ -2554,7 +2559,11 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
                 int pos = Parser->info[RTCM3_MSM_GLONASS].pos[j];
                 if((Parser->Data.dataflags[i] & df)
                 && !isnan(Parser->Data.measdata[i][pos])
-                && !isinf(Parser->Data.measdata[i][pos]))
+                && !isinf(Parser->Data.measdata[i][pos])
+                && (Parser->Data.codetype[i][pos]
+                  && Parser->info[RTCM3_MSM_GLONASS].type[pos]
+                  && Parser->info[RTCM3_MSM_GLONASS].type[pos]
+                  == Parser->Data.codetype[i][pos][1]))
                 {
                   char lli = ' ';
                   char snr = ' ';
@@ -2587,7 +2596,11 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
                 int pos = Parser->info[RTCM3_MSM_GALILEO].pos[j];
                 if((Parser->Data.dataflags[i] & df)
                 && !isnan(Parser->Data.measdata[i][pos])
-                && !isinf(Parser->Data.measdata[i][pos]))
+                && !isinf(Parser->Data.measdata[i][pos])
+                && (Parser->Data.codetype[i][pos]
+                  && Parser->info[RTCM3_MSM_GALILEO].type[pos]
+                  && Parser->info[RTCM3_MSM_GALILEO].type[pos]
+                  == Parser->Data.codetype[i][pos][1]))
                 {
                   char lli = ' ';
                   char snr = ' ';
@@ -2638,7 +2651,11 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
                 int pos = Parser->info[RTCM3_MSM_COMPASS].pos[j];
                 if((Parser->Data.dataflags[i] & df)
                 && !isnan(Parser->Data.measdata[i][pos])
-                && !isinf(Parser->Data.measdata[i][pos]))
+                && !isinf(Parser->Data.measdata[i][pos])
+                && (Parser->Data.codetype[i][pos]
+                  && Parser->info[RTCM3_MSM_COMPASS].type[pos]
+                  && Parser->info[RTCM3_MSM_COMPASS].type[pos]
+                  == Parser->Data.codetype[i][pos][1]))
                 {
                   char lli = ' ';
                   char snr = ' ';
@@ -2675,10 +2692,10 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
                 if((Parser->Data.dataflags[i] & df)
                 && !isnan(Parser->Data.measdata[i][pos])
                 && !isinf(Parser->Data.measdata[i][pos])
-                && (Parser->Data.codetype[i]
+                && (Parser->Data.codetype[i][pos]
                   && Parser->info[RTCM3_MSM_QZSS].type[pos]
                   && Parser->info[RTCM3_MSM_QZSS].type[pos]
-                  == Parser->Data.codetype[i][1]))
+                  == Parser->Data.codetype[i][pos][1]))
                 {
                   char lli = ' ';
                   char snr = ' ';
@@ -2717,7 +2734,11 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
                 int pos = Parser->info[RTCM3_MSM_SBAS].pos[j];
                 if((Parser->Data.dataflags[i] & df)
                 && !isnan(Parser->Data.measdata[i][pos])
-                && !isinf(Parser->Data.measdata[i][pos]))
+                && !isinf(Parser->Data.measdata[i][pos])
+                && (Parser->Data.codetype[i][pos]
+                  && Parser->info[RTCM3_MSM_SBAS].type[pos]
+                  && Parser->info[RTCM3_MSM_SBAS].type[pos]
+                  == Parser->Data.codetype[i][pos][1]))
                 {
                   char lli = ' ';
                   char snr = ' ';
@@ -2748,9 +2769,13 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
               {
                 int df = Parser->info[RTCM3_MSM_GPS].flags[j];
                 int pos = Parser->info[RTCM3_MSM_GPS].pos[j];
-                if((Parser->Data.dataflags[i] & df)
+                if((Parser->Data.dataflags[pos] & df)
                 && !isnan(Parser->Data.measdata[i][pos])
-                && !isinf(Parser->Data.measdata[i][pos]))
+                && !isinf(Parser->Data.measdata[i][pos])
+                && (Parser->Data.codetype[i][pos]
+                  && Parser->info[RTCM3_MSM_GPS].type[pos]
+                  && Parser->info[RTCM3_MSM_GPS].type[pos]
+                  == Parser->Data.codetype[i][pos][1]))
                 {
                   char lli = ' ';
                   char snr = ' ';

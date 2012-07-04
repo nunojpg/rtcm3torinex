@@ -307,7 +307,7 @@ struct gnssdata {
   int    satellites[GNSS_MAXSATS];     /* SV - IDs */
   int    snrL1[GNSS_MAXSATS];          /* Important: all the 6 SV-specific fields must */
   int    snrL2[GNSS_MAXSATS];          /* have the same SV-order */
-  const char * codetype[GNSS_MAXSATS]; 
+  const char * codetype[GNSS_MAXSATS][GNSSENTRY_NUMBER];
 };
 
 #define GPSEPHF_L2PCODEDATA    (1<<0) /* set, if NAV data OFF on L2 P-code, s1w4b01 */
