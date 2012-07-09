@@ -1,7 +1,7 @@
 /*
   Converter for RTCM3 data to RINEX.
   $Id$
-  Copyright (C) 2005-2008 by Dirk Stöcker <stoecker@alberding.eu>
+  Copyright (C) 2005-2012 by Dirk Stöcker <stoecker@alberding.eu>
 
   This software is a complete NTRIP-RTCM3 to RINEX converter as well as
   a module of the BNC tool for multiformat conversion. Contact Dirk
