@@ -72,4 +72,5 @@ int rrinex3codetoentry(const char *code)
     res += GNSSENTRY_TYPEC5AB;
     break;
   }
+  return res;
 }
