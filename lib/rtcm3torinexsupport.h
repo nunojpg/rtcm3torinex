@@ -30,6 +30,6 @@ extern "C" {
 int rrinex3codetoentry(const char *code);
 
 std::string entry2rinexcode(const char* codetype[GNSS_MAXSATS][GNSSENTRY_NUMBER],
-                            int iSat, int iEntry) {
+                            int iSat, int iEntry);
 
 #endif /* RTCM3TORINEXSUPPORT_H */
