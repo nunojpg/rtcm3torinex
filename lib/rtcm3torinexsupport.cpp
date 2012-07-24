@@ -24,6 +24,8 @@
   or read http://www.gnu.org/licenses/gpl.txt
 */
 
+#include "rtcm3torinexsupport.h"
+
 int rrinex3codetoentry(const char *code)
 {
   int res = 0;
