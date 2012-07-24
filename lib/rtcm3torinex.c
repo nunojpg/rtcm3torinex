@@ -610,12 +610,14 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
             c = GNSSDF_P1DATA;  ce = GNSSENTRY_P1DATA;
             l = GNSSDF_L1PDATA; le = GNSSENTRY_L1PDATA;
             s = GNSSDF_S1PDATA; se = GNSSENTRY_S1PDATA;
+            gnss->codetype[num][ce] = gnss->codetype[num][le] = "1 ";
           }
           else
           {
             c = GNSSDF_C1DATA;  ce = GNSSENTRY_C1DATA;
             l = GNSSDF_L1CDATA; le = GNSSENTRY_L1CDATA;
             s = GNSSDF_S1CDATA; se = GNSSENTRY_S1CDATA;
+            gnss->codetype[num][ce] = gnss->codetype[num][le] = "1C";
           }
           GETBITS(l1range, 24);
           GETBITSSIGN(i, 20);
@@ -660,13 +662,21 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
               l = GNSSDF_L2PDATA; le = GNSSENTRY_L2PDATA;
               s = GNSSDF_S2PDATA; se = GNSSENTRY_S2PDATA;
               if(code >= 2)
+              {
+                gnss->codetype[num][ce] = gnss->codetype[num][le] = "2W";
                 gnss->dataflags2[num] |= GNSSDF2_XCORRL2;
+              }
+              else
+              {
+                gnss->codetype[num][ce] = gnss->codetype[num][le] = "2P";
+              }
             }
             else
             {
               c = GNSSDF_C2DATA;  ce = GNSSENTRY_C2DATA;
               l = GNSSDF_L2CDATA; le = GNSSENTRY_L2CDATA;
               s = GNSSDF_S2CDATA; se = GNSSENTRY_S2CDATA;
+              gnss->codetype[num][ce] = gnss->codetype[num][le] = "2 ";
             }
             GETBITSSIGN(i,14);
             if((i&((1<<14)-1)) != 0x2000)
@@ -786,12 +796,14 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
             c = GNSSDF_P1DATA;  ce = GNSSENTRY_P1DATA;
             l = GNSSDF_L1PDATA; le = GNSSENTRY_L1PDATA;
             s = GNSSDF_S1PDATA; se = GNSSENTRY_S1PDATA;
+            gnss->codetype[num][ce] = gnss->codetype[num][le] = "1P";
           }
           else
           {
             c = GNSSDF_C1DATA;  ce = GNSSENTRY_C1DATA;
             l = GNSSDF_L1CDATA; le = GNSSENTRY_L1CDATA;
             s = GNSSDF_S1CDATA; se = GNSSENTRY_S1CDATA;
+            gnss->codetype[num][ce] = gnss->codetype[num][le] = "1C";
           }
           GETBITS(l1range, 25)
           GETBITSSIGN(i, 20)
@@ -838,12 +850,14 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
               c = GNSSDF_P2DATA;  ce = GNSSENTRY_P2DATA;
               l = GNSSDF_L2PDATA; le = GNSSENTRY_L2PDATA;
               s = GNSSDF_S2PDATA; se = GNSSENTRY_S2PDATA;
+              gnss->codetype[num][ce] = gnss->codetype[num][le] = "2P";
             }
             else
             {
               c = GNSSDF_C2DATA;  ce = GNSSENTRY_C2DATA;
               l = GNSSDF_L2CDATA; le = GNSSENTRY_L2CDATA;
               s = GNSSDF_S2CDATA; se = GNSSENTRY_S2CDATA;
+              gnss->codetype[num][ce] = gnss->codetype[num][le] = "2C";
             }
             GETBITSSIGN(i,14)
             if((i&((1<<14)-1)) != 0x2000)
