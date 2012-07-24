@@ -24,7 +24,7 @@
   or read http://www.gnu.org/licenses/gpl.txt
 */
 
-#include "rtcm3torinexsupport.h"
+#include "rtcm3torinex.h"
 
 int rrinex3codetoentry(const char *code)
 {
@@ -73,18 +73,4 @@ int rrinex3codetoentry(const char *code)
     break;
   }
   return res;
-}
-
-std::string entry2rinexcode(const char* codetype[GNSS_MAXSATS][GNSSENTRY_NUMBER],
-                            int iSat, int iEntry) {
-  char str[3];
-  switch(iEntry&3) {
-   case GNSSENTRY_CODE:    str[0] = 'C'; break;
-   case GNSSENTRY_PHASE:   str[0] = 'L'; break;
-   case GNSSENTRY_DOPPLER: str[0] = 'D'; break;
-   case GNSSENTRY_SNR:     str[0] = 'S'; break;
-  }
-  str[1] = codetype[iSat][iEntry][0];
-  str[2] = codetype[iSat][iEntry][1];
-  return std::string(str);
 }
