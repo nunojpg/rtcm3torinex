@@ -621,6 +621,12 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
             gnss->codetype[num][se] = 
             gnss->codetype[num][ce] = gnss->codetype[num][le] = "1C";
           }
+          if(!handle->info[RTCM3_MSM_GPS].type[ce])
+          {
+            handle->info[RTCM3_MSM_GPS].type[ce] = 
+            handle->info[RTCM3_MSM_GPS].type[le] = 
+            handle->info[RTCM3_MSM_GPS].type[se] = gnss->codetype[num][ce][1];
+          }
           GETBITS(l1range, 24);
           GETBITSSIGN(i, 20);
           if((i&((1<<20)-1)) != 0x80000)
@@ -682,6 +688,12 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
               s = GNSSDF_S2CDATA; se = GNSSENTRY_S2CDATA;
               gnss->codetype[num][se] = 
               gnss->codetype[num][ce] = gnss->codetype[num][le] = "2 ";
+            }
+            if(!handle->info[RTCM3_MSM_GPS].type[ce])
+            {
+              handle->info[RTCM3_MSM_GPS].type[ce] = 
+              handle->info[RTCM3_MSM_GPS].type[le] = 
+              handle->info[RTCM3_MSM_GPS].type[se] = gnss->codetype[num][ce][1];
             }
             GETBITSSIGN(i,14);
             if((i&((1<<14)-1)) != 0x2000)
@@ -812,6 +824,12 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
             gnss->codetype[num][se] = 
             gnss->codetype[num][ce] = gnss->codetype[num][le] = "1C";
           }
+          if(!handle->info[RTCM3_MSM_GLONASS].type[ce])
+          {
+            handle->info[RTCM3_MSM_GLONASS].type[ce] = 
+            handle->info[RTCM3_MSM_GLONASS].type[le] = 
+            handle->info[RTCM3_MSM_GLONASS].type[se] = gnss->codetype[num][ce][1];
+          }
           GETBITS(l1range, 25)
           GETBITSSIGN(i, 20)
           if((i&((1<<20)-1)) != 0x80000)
@@ -867,6 +885,12 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
               s = GNSSDF_S2CDATA; se = GNSSENTRY_S2CDATA;
               gnss->codetype[num][se] = 
               gnss->codetype[num][ce] = gnss->codetype[num][le] = "2C";
+            }
+            if(!handle->info[RTCM3_MSM_GLONASS].type[ce])
+            {
+              handle->info[RTCM3_MSM_GLONASS].type[ce] = 
+              handle->info[RTCM3_MSM_GLONASS].type[le] = 
+              handle->info[RTCM3_MSM_GLONASS].type[se] = gnss->codetype[num][ce][1];
             }
             GETBITSSIGN(i,14)
             if((i&((1<<14)-1)) != 0x2000)
