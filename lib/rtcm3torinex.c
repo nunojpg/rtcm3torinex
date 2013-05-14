@@ -1249,6 +1249,14 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         switch(sys)
         {
         case RTCM3_MSM_COMPASS:
+          GETBITS(i,30)
+          i += 14000;
+          if(i >= 7*24*60*60*1000)
+            i -= 7*24*60*60*1000;
+          if(i/1000 < (int)handle->GPSTOW - 86400)
+            ++handle->GPSWeek;
+          handle->GPSTOW = i/1000;
+          break;
         case RTCM3_MSM_GALILEO: /* use DF004 instead of DF248 */
         case RTCM3_MSM_QZSS:
         case RTCM3_MSM_SBAS:
