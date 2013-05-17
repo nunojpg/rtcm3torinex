@@ -611,7 +611,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
             l = GNSSDF_L1PDATA; le = GNSSENTRY_L1PDATA;
             s = GNSSDF_S1PDATA; se = GNSSENTRY_S1PDATA;
             gnss->codetype[num][se] = 
-            gnss->codetype[num][ce] = gnss->codetype[num][le] = "1 ";
+            gnss->codetype[num][ce] = gnss->codetype[num][le] = "1P";
           }
           else
           {
