@@ -444,7 +444,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         ret = 1019;
       }
       break;
-    case 1045:
+    case 1045: case 1046:
       {
         struct galileoephemeris *ge;
         int sv;
@@ -478,12 +478,23 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         GETFLOATSIGN(ge->omega, 32, R2R_PI/(double)(1<<30)/(double)(1<<1))
         GETFLOATSIGN(ge->OMEGADOT, 24, R2R_PI/(double)(1<<30)/(double)(1<<13))
         GETFLOATSIGN(ge->BGD_1_5A, 10, 1.0/(double)(1<<30)/(double)(1<<2))
-        GETFLOATSIGN(ge->BGD_1_5B, 10, 1.0/(double)(1<<30)/(double)(1<<2))
-        GETBITS(ge->E5aHS, 2)
-        GETBITS(sv, 1)
-        if(sv)
-          ge->flags |= GALEPHF_E5ADINVALID;
-        ret = 1045;
+        if(type == 1046)
+        {
+          GETFLOATSIGN(ge->BGD_1_5B, 10, 1.0/(double)(1<<30)/(double)(1<<2))
+          GETBITS(ge->E5aHS, 2)
+          GETBITS(sv, 1)
+          if(sv)
+            ge->flags |= GALEPHF_E5ADINVALID;
+          GETFLOATSIGN(ge->BGD_1_5B, 10, 1.0/(double)(1<<30)/(double)(1<<2))
+        }
+        else
+        {
+          GETBITS(ge->E5bHS, 2)
+          GETBITS(sv, 1)
+          if(sv)
+            ge->flags |= GALEPHF_E5BDINVALID;
+        }
+        ret = type;
       }
       break;
     case 1020:
@@ -3810,8 +3821,6 @@ int main(int argc, char **argv)
       {
         int k = 0;
         int chunkymode = 0;
-        int starttime = time(0);
-        int lastout = starttime;
         int totalbytes = 0;
         int chunksize = 0;
 
@@ -3938,8 +3947,6 @@ int main(int argc, char **argv)
             if(totalbytes < 0) /* overflow */
             {
               totalbytes = 0;
-              starttime = time(0);
-              lastout = starttime;
             }
           }
         }
