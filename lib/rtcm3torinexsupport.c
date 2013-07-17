@@ -47,7 +47,7 @@ int rrinex3codetoentry(const char *code)
     case 'C': res += GNSSENTRY_TYPEC1; break;
     case 'P': case'W': case 'Y': res += GNSSENTRY_TYPEP1; break;
     case 'A': case'B':
-    case 'S': case'L': case 'X': res += GNSSENTRY_TYPEC1N; break;
+    case 'S': case'L': case 'X': res += GNSSENTRY_TYPEC1; break;
     case 'Z': res += GNSSENTRY_TYPECSAIF; break;
     }
     break;
