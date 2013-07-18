@@ -57,6 +57,7 @@ int rrinex3codetoentry(const char *code)
     default:
     case 'P': case 'W': case 'Y': res += GNSSENTRY_TYPEP2; break;
     case 'C': case 'S': case 'L': case 'X': res += GNSSENTRY_TYPEC2; break;
+    case 'I': res += GNSSENTRY_TYPEC5B; break;
     }
     break;
   case '5':
