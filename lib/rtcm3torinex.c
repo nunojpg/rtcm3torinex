@@ -2535,7 +2535,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
             ((double) e->SVhealth), e->TGD, ((double) e->IODC));
 
             ConvLine(file, "   %19.12e%19.12e\n", ((double)e->TOW),
-            i & GPSEPHF_6HOURSFIT ? 1.0 : 0.0);
+            i & GPSEPHF_6HOURSFIT ? 6.0 : 4.0);
             /* TOW */
           }
         }
