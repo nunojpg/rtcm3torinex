@@ -325,6 +325,7 @@ struct gnssdata {
 #define GPSEPHF_L2PCODE        (1<<1) /* set, if P-code available, s1w3b12 */
 #define GPSEPHF_L2CACODE       (1<<2) /* set, if CA-code available, s1w3b11 */
 #define GPSEPHF_VALIDATED      (1<<3) /* data is completely valid */
+#define GPSEPHF_6HOURSFIT      (1<<4) /* Bit 17 Word 10 of subframe 2 is set to 1 */
 
 #define R2R_PI          3.1415926535898
 

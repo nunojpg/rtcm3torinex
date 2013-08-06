@@ -432,6 +432,9 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         GETBITS(sv, 1)
         if(sv)
           ge->flags |= GPSEPHF_L2PCODEDATA;
+        GETBITS(sv, 1)
+        if(sv)
+          ge->flags |= GPSEPHF_6HOURSFIT;
 
         i = ((int)ge->GPSweek - (int)handle->GPSWeek)*7*24*60*60
         + ((int)ge->TOE - (int)handle->GPSTOW) - 2*60*60;
@@ -2531,7 +2534,8 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
             ConvLine(file, "   %19.12e%19.12e%19.12e%19.12e\n", d,
             ((double) e->SVhealth), e->TGD, ((double) e->IODC));
 
-            ConvLine(file, "   %19.12e%19.12e\n", ((double)e->TOW), 0.0);
+            ConvLine(file, "   %19.12e%19.12e\n", ((double)e->TOW),
+            i & GPSEPHF_6HOURSFIT ? 1.0 : 0.0);
             /* TOW */
           }
         }
