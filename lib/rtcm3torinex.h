@@ -35,14 +35,17 @@
 #define PRN_GLONASS_END           61
 #define PRN_GALILEO_START         71
 #define PRN_GALILEO_END           100
+#define PRN_GIOVE_START           101
+#define PRN_GIOVE_END             102
 #define PRN_SBAS_START            120
-#define PRN_SBAS_END              138
-#define PRN_GIOVE_START           139
-#define PRN_GIOVE_END             140
-#define PRN_COMPASS_START         141
-#define PRN_COMPASS_END           170
+#define PRN_SBAS_END              141
+#define PRN_COMPASS_START         161
+#define PRN_COMPASS_END           190
 #define PRN_QZSS_START            193
 #define PRN_QZSS_END              202
+
+#define PRN_GALGIO_START          PRN_GALILEO_START
+#define PRN_GALGIO_END            PRN_GIOVE_END
 
 #define PRN_GLONASS_NUM           (PRN_GLONASS_END-PRN_GLONASS_START+1)
 
@@ -469,10 +472,20 @@ struct RTCM3ParserData {
   long long    flags[RINEXENTRY_NUMBER];
   /* For RINEX2 only field GPS is used */
   struct DataInfo info[RTCM3_MSM_NUMSYS];
+  int          datafields[RINEXENTRY_NUMBER]; /* for RTCM2 header */
+  char         fieldbuffer[6*RINEXENTRY_NUMBER+1];
+  char         fieldbufferSBAS[4*RINEXENTRY_NUMBER+1];
+  char         fieldbufferGPS[4*RINEXENTRY_NUMBER+1];
+  char         fieldbufferGLONASS[4*RINEXENTRY_NUMBER+1];
+  char         fieldbufferGALILEO[4*RINEXENTRY_NUMBER+1];
+  char         fieldbufferCOMPASS[4*RINEXENTRY_NUMBER+1];
+  char         fieldbufferQZSS[4*RINEXENTRY_NUMBER+1];
+  int          numdatafields; /* for RTCM2 */
   int          validwarning;
   int          init;
   int          startflags;
   int          rinex3;
+  int          changeobs;
   const char * headerfile;
   const char * glonassephemeris;
   const char * gpsephemeris;

@@ -24,10 +24,18 @@ Type  Contains information about
 1014-1017 Network RTK (MAK) messages
 1019  GPS Ephemeris
 1020  GLONASS Ephemeris
+1045-1046 Galileo Ephemeris
+1071-1077 GPS-MSM data
+1081-1087 GLONASS-MSM data
+1091-1097 Galileo-MSM data
+1101-1107 SBAS-MSM data
+1111-1117 QZSS-MSM data
+1121-1127 BeiDou-MSM data
 4088-4095 Proprietary messages (under development)
 
 Note that this version of rtcm3torinex only handles RTCM3 message types 1001,
-1002, 1003, 1004, 1009, 1010, 1011, 1012, 1019 and 1020.
+1002, 1003, 1004, 1009, 1010, 1011, 1012, 1013, 1019, 1020, 1045, 1046,
+1071-1077, 1081-1087, 1091-1097, 1101-1107, 1111-1117 and 1121-1127.
 
 The generated RINEX is somewhat limited due to the streaming character of the
 conversion:
@@ -38,6 +46,8 @@ conversion:
  - The number of observables cannot change during the program runtime. Only
    the observables, which exist in the first epoch are output. If there
    are new observables later on, these are ignored.
+   The Option --changeobs removes that limitation, but not many tools can use
+   the resulting files which include header change records.
  - Only known message types are interpreted. Send me new RTCM3 data files and
    data support can be improved. See contact address at the end of this document.
  - If the ambiguity field in the RTCM3 data is not set, the output will be no
@@ -60,6 +70,7 @@ Usage: ./rtcm3torinex -s server -u user ...
  -S --proxyhost        proxy name or address
  -R --proxyport        proxy port, optional (default 2101)
  -n --nmea             NMEA string for sending to server
+ -O --changeobs        Add observation type change header lines
  -M --mode             mode for data request
      Valid modes are:
      1, h, http     NTRIP Version 2.0 Caster in TCP/IP mode
