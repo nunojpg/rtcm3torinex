@@ -2173,13 +2173,13 @@ size_t buffersize, struct HeaderData *hdata)
 void HandleHeader(struct RTCM3ParserData *Parser)
 {
 #ifdef NO_RTCM3_MAIN
-  int i, modified = 0;
+  int flags, modified = 0;
   if(Parser->allflags == 0)
     Parser->allflags = ~0;
+  flags = Parser->allflags;
   if(Parser->rinex3)
   {
     struct HeaderData *hdata = 0;
-    int flags = Parser->allflags;
     CHECKFLAGSNEW(GPS, C1,  C1C)
     CHECKFLAGSNEW(GPS, L1C, L1C)
     CHECKFLAGSNEW(GPS, D1C, D1C)
@@ -2215,8 +2215,6 @@ void HandleHeader(struct RTCM3ParserData *Parser)
   }
   else
   {
-    int flags = Parser->allflags;
-
     CHECKFLAGS(C1,C1)
     CHECKFLAGS(C2,C2)
     CHECKFLAGS(P1,P1)
