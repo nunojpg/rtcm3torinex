@@ -2216,8 +2216,6 @@ void HandleHeader(struct RTCM3ParserData *Parser)
   else
   {
     int flags = Parser->allflags;
-    int data[RINEXENTRY_NUMBER];
-    for(i = 0; i < RINEXENTRY_NUMBER; ++i) data[i] = 0;
 
     CHECKFLAGS(C1,C1)
     CHECKFLAGS(C2,C2)
