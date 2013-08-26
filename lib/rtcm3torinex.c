@@ -2178,6 +2178,7 @@ void HandleHeader(struct RTCM3ParserData *Parser)
     Parser->allflags = ~0;
   if(Parser->rinex3)
   {
+    struct HeaderData *hdata = 0;
     int flags = Parser->allflags;
     CHECKFLAGSNEW(GPS, C1,  C1C)
     CHECKFLAGSNEW(GPS, L1C, L1C)
