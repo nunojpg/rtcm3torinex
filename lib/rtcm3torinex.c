@@ -2178,14 +2178,7 @@ void HandleHeader(struct RTCM3ParserData *Parser)
     Parser->allflags = ~0;
   if(Parser->rinex3)
   {
-#define CHECKFLAGSNEW(a, b, c) \
-    if(Parser->allflags & GNSSDF_##b##DATA) \
-    { \
-      Parser->info[RTCM3_MSM_##a].flags[Parser->info[RTCM3_MSM_GPS].numtypes] = GNSSDF_##b##DATA; \
-      Parser->info[RTCM3_MSM_##a].pos[Parser->info[RTCM3_MSM_GPS].numtypes] = GNSSENTRY_##b##DATA; \
-      ++Parser->info[RTCM3_MSM_##a].numtypes; \
-    }
-
+    int flags = Parser->allflags;
     CHECKFLAGSNEW(GPS, C1,  C1C)
     CHECKFLAGSNEW(GPS, L1C, L1C)
     CHECKFLAGSNEW(GPS, D1C, D1C)
@@ -2221,22 +2214,7 @@ void HandleHeader(struct RTCM3ParserData *Parser)
   }
   else
   {
-#define CHECKFLAGS(a, b) \
-    if(Parser->allflags & GNSSDF_##a##DATA) \
-    { \
-      if(data[RINEXENTRY_##b##DATA]) \
-      { \
-        Parser->info[RTCM3_MSM_GPS].flags[data[RINEXENTRY_##b##DATA]-1] = GNSSDF_##a##DATA; \
-        Parser->info[RTCM3_MSM_GPS].pos[data[RINEXENTRY_##b##DATA]-1] = GNSSENTRY_##a##DATA; \
-      } \
-      else \
-      { \
-        Parser->flags[Parser->info[RTCM3_MSM_GPS].numtypes] = GNSSDF_##a##DATA; \
-        Parser->pos[Parser->info[RTCM3_MSM_GPS].numtypes] = GNSSENTRY_##a##DATA; \
-        data[RINEXENTRY_##b##DATA] = ++Parser->info[RTCM3_MSM_GPS].numtypes; \
-      } \
-    }
-
+    int flags = Parser->allflags;
     int data[RINEXENTRY_NUMBER];
     for(i = 0; i < RINEXENTRY_NUMBER; ++i) data[i] = 0;
 
