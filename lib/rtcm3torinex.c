@@ -2173,7 +2173,7 @@ size_t buffersize, struct HeaderData *hdata)
 void HandleHeader(struct RTCM3ParserData *Parser)
 {
 #ifdef NO_RTCM3_MAIN
-  int i;
+  int i, modified = 0;
   if(Parser->allflags == 0)
     Parser->allflags = ~0;
   if(Parser->rinex3)
