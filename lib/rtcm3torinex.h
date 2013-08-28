@@ -258,7 +258,7 @@
 
 #define GAL_FREQU_E1       1575420000.0  /* Hz */
 #define GAL_FREQU_E5A      1176450000.0  /* Hz */
-#define GAL_FREQU_E5AB     1197950000.0  /* Hz */
+#define GAL_FREQU_E5AB     1191795000.0  /* Hz */
 #define GAL_FREQU_E5B      1207140000.0  /* Hz */
 #define GAL_FREQU_E6       1278750000.0  /* Hz */
 #define GAL_WAVELENGTH_E1     (LIGHTSPEED / GAL_FREQU_E1) /* m */
