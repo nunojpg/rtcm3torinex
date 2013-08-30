@@ -1182,7 +1182,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         {
           {0,0,0,0,0,0,0},
           {GNSSENTRY_CB1DATA,GNSSENTRY_LB1DATA,GNSSENTRY_DB1DATA,
-          GNSSENTRY_SB1DATA,GNSSDF2_LOCKLOSSB1,COMPASS_WAVELENGTH_B1,"2I"},
+          GNSSENTRY_SB1DATA,GNSSDF2_LOCKLOSSB1,COMPASS_WAVELENGTH_B1,"1I"},
           {0,0,0,0,0,0,0},
           {0,0,0,0,0,0,0},
           {0,0,0,0,0,0,0},
