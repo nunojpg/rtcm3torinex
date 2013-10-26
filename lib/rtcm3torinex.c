@@ -701,7 +701,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
               l = GNSSDF_L2CDATA; le = GNSSENTRY_L2CDATA;
               s = GNSSDF_S2CDATA; se = GNSSENTRY_S2CDATA;
               gnss->codetype[num][se] = 
-              gnss->codetype[num][ce] = gnss->codetype[num][le] = "2 ";
+              gnss->codetype[num][ce] = gnss->codetype[num][le] = "2C";
             }
             if(!handle->info[RTCM3_MSM_GPS].type[ce])
             {
