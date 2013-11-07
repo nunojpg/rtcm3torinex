@@ -486,12 +486,14 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
           GETFLOATSIGN(ge->BGD_1_5B, 10, 1.0/(double)(1<<30)/(double)(1<<2))
           GETBITS(ge->E5aHS, 2)
           GETBITS(sv, 1)
+          ge->flags |= GALEPHF_INAV;
           if(sv)
             ge->flags |= GALEPHF_E5ADINVALID;
           GETFLOATSIGN(ge->BGD_1_5B, 10, 1.0/(double)(1<<30)/(double)(1<<2))
         }
         else
         {
+          ge->flags |= GALEPHF_FNAV;
           GETBITS(ge->E5bHS, 2)
           GETBITS(sv, 1)
           if(sv)

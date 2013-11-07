@@ -365,7 +365,9 @@ struct gpsephemeris {
 };
 
 #define GALEPHF_E5ADINVALID     (1<<0) /* E5aDVS set invalid */
-#define GALEPHF_E5BDINVALID     (1<<0) /* E5bDVS set invalid */
+#define GALEPHF_E5BDINVALID     (1<<1) /* E5bDVS set invalid */
+#define GALEPHF_INAV            (1<<2) /* INAV data */
+#define GALEPHF_FNAV            (1<<3) /* FNAV data */
 
 #define GLOEPHF_UNHEALTHY       (1<<0) /* set if unhealty satellite, f2b78 */
 #define GLOEPHF_ALMANACHEALTHOK (1<<1) /* set if ALM health is available */
