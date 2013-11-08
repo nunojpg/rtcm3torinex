@@ -1485,10 +1485,10 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
               case RTCM3_MSM_GLONASS: cd = glo[RTCM3_MSM_NUMSIG-j-1];
                 {
                   int k = handle->GLOFreq[RTCM3_MSM_NUMSAT-i-1];
-                  if(!k && extsat[count] < 14)
+                  if(!k && extsat[numsat] < 14)
                   {
                     k = handle->GLOFreq[RTCM3_MSM_NUMSAT-i-1]
-                    = 100+extsat[count]-7;
+                    = 100+extsat[numsat]-7;
                   }
                   if(k)
                   {
