@@ -2587,7 +2587,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
       }
       else if (r == 1 || r == 2)
       {
-        int i, j, o, nh=0;
+        int i, j, o, nh=0, hl=2;
         char newheader[512];
         struct converttimeinfo cti;
 
@@ -2618,18 +2618,26 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
         if(Parser->changeobs)
         {
           nh = HandleObsHeader(Parser, newheader, sizeof(newheader), 0);
+          for(i = 0; i < nh; ++i)
+          {
+            if(newheader[i] == '\n')
+              ++hl;
+          }
         }
         if(Parser->rinex3)
         {
-          RTCM3Text("> %04d %02d %02d %02d %02d%11.7f  %d%3d\n",
-          cti.year, cti.month, cti.day, cti.hour, cti.minute, cti.second
-          + fmod(Parser->Data.timeofweek/1000.0,1.0), nh ? 4 : 0,
-          Parser->Data.numsats);
           if(nh)
           {
+            RTCM3Text("> %04d %02d %02d %02d %02d%11.7f  4%3d\n",
+            cti.year, cti.month, cti.day, cti.hour, cti.minute, cti.second
+            + fmod(Parser->Data.timeofweek/1000.0,1.0), hl);
             RTCM3Text("%s\n                             "
             "                               END OF HEADER\n", newheader);
           }
+          RTCM3Text("> %04d %02d %02d %02d %02d%11.7f  %d%3d\n",
+          cti.year, cti.month, cti.day, cti.hour, cti.minute, cti.second
+          + fmod(Parser->Data.timeofweek/1000.0,1.0), 0,
+          Parser->Data.numsats);
           for(i = 0; i < Parser->Data.numsats; ++i)
           {
             int sys[RTCM3_MSM_NUMSYS] = {0,0,0,0,0,0};
