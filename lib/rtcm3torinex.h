@@ -491,8 +491,10 @@ struct RTCM3ParserData {
   const char * headerfile;
   const char * glonassephemeris;
   const char * gpsephemeris;
+  const char * qzssephemeris;
   FILE *       glonassfile;
   FILE *       gpsfile;
+  FILE *       qzssfile;
 };
 
 #ifndef PRINTFARG

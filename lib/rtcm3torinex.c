@@ -447,6 +447,65 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         ret = 1019;
       }
       break;
+    case 1044:
+      {
+        struct gpsephemeris *ge;
+        int sv, i;
+
+        ge = &handle->ephemerisGPS;
+        memset(ge, 0, sizeof(*ge));
+
+        GETBITS(sv, 4)
+        ge->satellite = PRN_QZSS_START+sv-1;
+        GETBITS(ge->TOC, 16)
+        ge->TOC <<= 4;
+        GETFLOATSIGN(ge->clock_driftrate, 8, 1.0/(double)(1<<30)/(double)(1<<25))
+        GETFLOATSIGN(ge->clock_drift, 16, 1.0/(double)(1<<30)/(double)(1<<13))
+        GETFLOATSIGN(ge->clock_bias, 22, 1.0/(double)(1<<30)/(double)(1<<1))
+        GETBITS(ge->IODE, 8)
+        GETFLOATSIGN(ge->Crs, 16, 1.0/(double)(1<<5))
+        GETFLOATSIGN(ge->Delta_n, 16, R2R_PI/(double)(1<<30)/(double)(1<<13))
+        GETFLOATSIGN(ge->M0, 32, R2R_PI/(double)(1<<30)/(double)(1<<1))
+        GETFLOATSIGN(ge->Cuc, 16, 1.0/(double)(1<<29))
+        GETFLOAT(ge->e, 32, 1.0/(double)(1<<30)/(double)(1<<3))
+        GETFLOATSIGN(ge->Cus, 16, 1.0/(double)(1<<29))
+        GETFLOAT(ge->sqrt_A, 32, 1.0/(double)(1<<19))
+        GETBITS(ge->TOE, 16)
+        ge->TOE <<= 4;
+        GETFLOATSIGN(ge->Cic, 16, 1.0/(double)(1<<29))
+        GETFLOATSIGN(ge->OMEGA0, 32, R2R_PI/(double)(1<<30)/(double)(1<<1))
+        GETFLOATSIGN(ge->Cis, 16, 1.0/(double)(1<<29))
+        GETFLOATSIGN(ge->i0, 32, R2R_PI/(double)(1<<30)/(double)(1<<1))
+        GETFLOATSIGN(ge->Crc, 16, 1.0/(double)(1<<5))
+        GETFLOATSIGN(ge->omega, 32, R2R_PI/(double)(1<<30)/(double)(1<<1))
+        GETFLOATSIGN(ge->OMEGADOT, 24, R2R_PI/(double)(1<<30)/(double)(1<<13))
+        GETFLOATSIGN(ge->IDOT, 14, R2R_PI/(double)(1<<30)/(double)(1<<13))
+        GETBITS(sv, 2)
+        if(sv & 1)
+          ge->flags |= GPSEPHF_L2PCODE;
+        if(sv & 2)
+          ge->flags |= GPSEPHF_L2CACODE;
+        GETBITS(ge->GPSweek, 10)
+        ge->GPSweek += 1024;
+        GETBITS(ge->URAindex, 4)
+        GETBITS(ge->SVhealth, 6)
+        GETFLOATSIGN(ge->TGD, 8, 1.0/(double)(1<<30)/(double)(1<<1))
+        GETBITS(ge->IODC, 10)
+        GETBITS(sv, 1)
+        if(sv)
+          ge->flags |= GPSEPHF_6HOURSFIT;
+
+        i = ((int)ge->GPSweek - (int)handle->GPSWeek)*7*24*60*60
+        + ((int)ge->TOE - (int)handle->GPSTOW) - 2*60*60;
+        if(i > 5*60*60 && i < 8*60*60)
+        {
+          handle->GPSTOW = ge->TOE;
+          handle->GPSWeek = ge->GPSweek;
+        }
+        ge->TOW = 0.9999E9;
+        ret = 1044;
+      }
+      break;
     case 1045: case 1046:
       {
         struct galileoephemeris *ge;
@@ -2439,13 +2498,14 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
     int r;
     while((r = RTCM3Parser(Parser)))
     {
-      if(r == 1020 || r == 1019)
+      if(r == 1020 || r == 1019 || r == 1044)
       {
         FILE *file = 0;
 
         if(Parser->rinex3 && !(file = Parser->gpsfile))
         {
-          const char *n = Parser->gpsephemeris ? Parser->gpsephemeris : Parser->glonassephemeris;
+          const char *n = Parser->gpsephemeris ? Parser->gpsephemeris
+          : Parser->qzssephemeris ? Parser->qzssephemeris : Parser->glonassephemeris;
           if(n)
           {
             if(!(Parser->gpsfile = fopen(n, "w")))
@@ -2460,6 +2520,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
               HandleRunBy(buffer, sizeof(buffer), 0, Parser->rinex3);
               fprintf(Parser->gpsfile, "%s\n%60sEND OF HEADER\n", buffer, "");
             }
+            Parser->qzssephemeris = 0;
             Parser->gpsephemeris = 0;
             Parser->glonassephemeris = 0;
             file = Parser->gpsfile;
@@ -2507,6 +2568,26 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
             }
             file = Parser->gpsfile;
           }
+          else if(r == 1044)
+          {
+            if(Parser->qzssephemeris)
+            {
+              if(!(Parser->qzssfile = fopen(Parser->qzssephemeris, "w")))
+              {
+                RTCM3Error("Could not open QZSS ephemeris output file.\n");
+              }
+              else
+              {
+                char buffer[100];
+                fprintf(Parser->qzssfile,
+                "%9.2f%11sN: QZSS NAV DATA%24sRINEX VERSION / TYPE\n", 2.1, "", "");
+                HandleRunBy(buffer, sizeof(buffer), 0, Parser->rinex3);
+                fprintf(Parser->qzssfile, "%s\n%60sEND OF HEADER\n", buffer, "");
+              }
+              Parser->qzssephemeris = 0;
+            }
+            file = Parser->qzssfile;
+          }
         }
         if(file)
         {
@@ -2536,31 +2617,46 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
             ConvLine(file, "   %19.12e%19.12e%19.12e%19.12e\n", e->z_pos,
             e->z_velocity, e->z_acceleration, (double) e->E);
           }
-          else /* if(r == 1019) */
+          else /* if(r == 1019 || r == 1044) */
           {
             struct gpsephemeris *e = &Parser->ephemerisGPS;
             double d;                 /* temporary variable */
             unsigned long int i;       /* temporary variable */
             struct converttimeinfo cti;
             converttime(&cti, e->GPSweek, e->TOC);
+            const char *sep = "   ";
+            int qzss = 0;
+            int num = e->satellite;
 
+            if(num >= PRN_QZSS_START)
+            {
+              qzss = 1;
+              num -= PRN_QZSS_START-1;
+            }
             if(Parser->rinex3)
-              ConvLine(file, "G%02d %04d %02d %02d %02d %02d %02d%19.12e%19.12e%19.12e\n",
-              e->satellite, cti.year, cti.month, cti.day, cti.hour,
+            {
+              ConvLine(file,
+              "%s%02d %04d %02d %02d %02d %02d %02d%19.12e%19.12e%19.12e\n",
+              qzss ? "J" : "G", num, cti.year, cti.month, cti.day, cti.hour,
               cti.minute, cti.second, e->clock_bias, e->clock_drift,
               e->clock_driftrate);
+              sep = "    ";
+            }
             else
-              ConvLine(file, "%02d %02d %02d %02d %02d %02d%05.1f%19.12e%19.12e%19.12e\n",
-              e->satellite, cti.year%100, cti.month, cti.day, cti.hour,
+            {
+              ConvLine(file,
+              "%02d %02d %02d %02d %02d %02d%05.1f%19.12e%19.12e%19.12e\n",
+              num, cti.year%100, cti.month, cti.day, cti.hour,
               cti.minute, (double) cti.second, e->clock_bias, e->clock_drift,
               e->clock_driftrate);
-            ConvLine(file, "   %19.12e%19.12e%19.12e%19.12e\n", (double)e->IODE,
-            e->Crs, e->Delta_n, e->M0);
-            ConvLine(file, "   %19.12e%19.12e%19.12e%19.12e\n", e->Cuc,
+            }
+            ConvLine(file, "%s%19.12e%19.12e%19.12e%19.12e\n", sep,
+            (double)e->IODE, e->Crs, e->Delta_n, e->M0);
+            ConvLine(file, "%s%19.12e%19.12e%19.12e%19.12e\n", sep, e->Cuc,
             e->e, e->Cus, e->sqrt_A);
-            ConvLine(file, "   %19.12e%19.12e%19.12e%19.12e\n",
+            ConvLine(file, "%s%19.12e%19.12e%19.12e%19.12e\n", sep,
             (double) e->TOE, e->Cic, e->OMEGA0, e->Cis);
-            ConvLine(file, "   %19.12e%19.12e%19.12e%19.12e\n", e->i0,
+            ConvLine(file, "%s%19.12e%19.12e%19.12e%19.12e\n", sep, e->i0,
             e->Crc, e->omega, e->OMEGADOT);
             d = 0;
             i = e->flags;
@@ -2568,7 +2664,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
               d += 2.0;
             if(i & GPSEPHF_L2PCODE)
               d += 1.0;
-            ConvLine(file, "   %19.12e%19.12e%19.12e%19.12e\n", e->IDOT, d,
+            ConvLine(file, "%s%19.12e%19.12e%19.12e%19.12e\n", sep, e->IDOT, d,
             (double) e->GPSweek, i & GPSEPHF_L2PCODEDATA ? 1.0 : 0.0);
             if(e->URAindex <= 6) /* URA index */
               d = ceil(10.0*pow(2.0, 1.0+((double)e->URAindex)/2.0))/10.0;
@@ -2576,11 +2672,12 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
               d = ceil(10.0*pow(2.0, ((double)e->URAindex)/2.0))/10.0;
             /* 15 indicates not to use satellite. We can't handle this special
                case, so we create a high "non"-accuracy value. */
-            ConvLine(file, "   %19.12e%19.12e%19.12e%19.12e\n", d,
+            ConvLine(file, "%s%19.12e%19.12e%19.12e%19.12e\n", sep, d,
             ((double) e->SVhealth), e->TGD, ((double) e->IODC));
 
-            ConvLine(file, "   %19.12e%19.12e\n", ((double)e->TOW),
-            i & GPSEPHF_6HOURSFIT ? 6.0 : 4.0);
+            ConvLine(file, "%s%19.12e%19.12e\n", sep, ((double)e->TOW),
+            (i & GPSEPHF_6HOURSFIT) ? (Parser->rinex3 ? 1 : qzss ? 4.0 : 6.0)
+            : (Parser->rinex3 ? 0 : qzss ? 2.0 : 4.0));
             /* TOW */
           }
         }
@@ -3172,6 +3269,7 @@ struct Args
   const char *data;
   const char *headerfile;
   const char *gpsephemeris;
+  const char *qzssephemeris;
   const char *glonassephemeris;
 };
 
@@ -3189,6 +3287,7 @@ static struct option opts[] = {
 { "header",           required_argument, 0, 'f'},
 { "user",             required_argument, 0, 'u'},
 { "gpsephemeris",     required_argument, 0, 'E'},
+{ "qzssephemeris",    required_argument, 0, 'Q'},
 { "glonassephemeris", required_argument, 0, 'G'},
 { "rinex3",           no_argument,       0, '3'},
 { "changeobs",        no_argument,       0, 'O'},
@@ -3199,7 +3298,7 @@ static struct option opts[] = {
 { "help",             no_argument,       0, 'h'},
 {0,0,0,0}};
 #endif
-#define ARGOPT "-d:s:p:r:t:f:u:E:G:M:S:R:n:h3O"
+#define ARGOPT "-d:s:p:r:t:f:u:E:G:Q:M:S:R:n:h3O"
 
 enum MODE { HTTP = 1, RTSP = 2, NTRIP1 = 3, AUTO = 4, END };
 
@@ -3329,6 +3428,7 @@ static int getargs(int argc, char **argv, struct Args *args)
   args->data = 0;
   args->headerfile = 0;
   args->gpsephemeris = 0;
+  args->qzssephemeris = 0;
   args->glonassephemeris = 0;
   args->rinex3 = 0;
   args->nmea = 0;
@@ -3354,6 +3454,7 @@ static int getargs(int argc, char **argv, struct Args *args)
     case 'f': args->headerfile = optarg; break;
     case 'E': args->gpsephemeris = optarg; break;
     case 'G': args->glonassephemeris = optarg; break;
+    case 'Q': args->qzssephemeris = optarg; break;
     case 'r': args->port = optarg; break;
     case '3': args->rinex3 = 1; break;
     case 'S': args->proxyhost = optarg; break;
@@ -3428,6 +3529,7 @@ static int getargs(int argc, char **argv, struct Args *args)
     " -u " LONG_OPT("--user             ") "the user name\n"
     " -E " LONG_OPT("--gpsephemeris     ") "output file for GPS ephemeris data\n"
     " -G " LONG_OPT("--glonassephemeris ") "output file for GLONASS ephemeris data\n"
+    " -Q " LONG_OPT("--qzssephemeris    ") "output file for QZSS ephemeris data\n"
     " -3 " LONG_OPT("--rinex3           ") "output RINEX type 3 data\n"
     " -S " LONG_OPT("--proxyhost        ") "proxy name or address\n"
     " -R " LONG_OPT("--proxyport        ") "proxy port, optional (default 2101)\n"
@@ -3532,6 +3634,7 @@ int main(int argc, char **argv)
     Parser.headerfile = args.headerfile;
     Parser.glonassephemeris = args.glonassephemeris;
     Parser.gpsephemeris = args.gpsephemeris;
+    Parser.qzssephemeris = args.qzssephemeris;
     Parser.rinex3 = args.rinex3;
     Parser.changeobs = args.changeobs;
 
