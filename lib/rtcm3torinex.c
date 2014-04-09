@@ -2422,10 +2422,12 @@ void HandleHeader(struct RTCM3ParserData *Parser)
               {
                 for(pos = 0; pos < hdata.numheaders; ++pos)
                 {
-                  if(!strcmp(hdata.data.unnamed[pos]+60, lastblockstart+60))
+                  if(hdata.data.unnamed[pos] &&
+                  !strcmp(hdata.data.unnamed[pos]+60, lastblockstart+60))
                     break;
                 }
                 if(!strcmp("# / TYPES OF OBSERV", lastblockstart+60)
+                || !strcmp("SYS / # / OBS TYPES", lastblockstart+60)
                 || !strcmp("TIME OF FIRST OBS", lastblockstart+60))
                 {
                   RTCM3Error("Overwriting header '%s' is dangerous.\n",
