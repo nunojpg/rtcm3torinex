@@ -1605,11 +1605,9 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                   {
                     gnss->measdata[num][cd.typeP] = cp[count]*LIGHTSPEED/1000.0/wl
                     +(rrmod[numsat])*LIGHTSPEED/1000.0/wl;
-                    if(handle->lastlockmsm[j][i] != ll[count])
-                    {
+                    if(handle->lastlockmsm[j][i] > ll[count])
                       gnss->dataflags2[num] |= cd.lock;
-                      handle->lastlockmsm[j][i] = ll[count];
-                    }
+                    handle->lastlockmsm[j][i] = ll[count] > 255 ? 255 : ll[count];
                     gnss->dataflags[num] |= (1LL<<cd.typeP);
                   }
                   break;
@@ -1625,11 +1623,9 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                   {
                     gnss->measdata[num][cd.typeP] = cp[count]*LIGHTSPEED/1000.0/wl
                     +(rrmod[numsat]+rrint[numsat])*LIGHTSPEED/1000.0/wl;
-                    if(handle->lastlockmsm[j][i] != ll[count])
-                    {
+                    if(handle->lastlockmsm[j][i] > ll[count])
                       gnss->dataflags2[num] |= cd.lock;
-                      handle->lastlockmsm[j][i] = ll[count];
-                    }
+                    handle->lastlockmsm[j][i] = ll[count] > 255 ? 255 : ll[count];
                     gnss->dataflags[num] |= (1LL<<cd.typeP);
                   }
                   break;
@@ -1645,11 +1641,9 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                   {
                     gnss->measdata[num][cd.typeP] = cp[count]*LIGHTSPEED/1000.0/wl
                     +(rrmod[numsat]+rrint[numsat])*LIGHTSPEED/1000.0/wl;
-                    if(handle->lastlockmsm[j][i] != ll[count])
-                    {
+                    if(handle->lastlockmsm[j][i] > ll[count])
                       gnss->dataflags2[num] |= cd.lock;
-                      handle->lastlockmsm[j][i] = ll[count];
-                    }
+                    handle->lastlockmsm[j][i] = ll[count] > 255 ? 255 : ll[count];
                     gnss->dataflags[num] |= (1LL<<cd.typeP);
                   }
 
@@ -1668,11 +1662,9 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                   {
                     gnss->measdata[num][cd.typeP] = cp[count]*LIGHTSPEED/1000.0/wl
                     +(rrmod[numsat]+rrint[numsat])*LIGHTSPEED/1000.0/wl;
-                    if(handle->lastlockmsm[j][i] != ll[count])
-                    {
+                    if(handle->lastlockmsm[j][i] > ll[count])
                       gnss->dataflags2[num] |= cd.lock;
-                      handle->lastlockmsm[j][i] = ll[count];
-                    }
+                    handle->lastlockmsm[j][i] = ll[count] > 255 ? 255 : ll[count];
                     gnss->dataflags[num] |= (1LL<<cd.typeP);
                   }
 
@@ -1698,11 +1690,9 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                   {
                     gnss->measdata[num][cd.typeP] = cp[count]*LIGHTSPEED/1000.0/wl
                     +(rrmod[numsat]+rrint[numsat])*LIGHTSPEED/1000.0/wl;
-                    if(handle->lastlockmsm[j][i] != ll[count])
-                    {
+                    if(handle->lastlockmsm[j][i] > ll[count])
                       gnss->dataflags2[num] |= cd.lock;
-                      handle->lastlockmsm[j][i] = ll[count];
-                    }
+                    handle->lastlockmsm[j][i] = ll[count] > 255 ? 255 : ll[count];
                     gnss->dataflags[num] |= (1LL<<cd.typeP);
                   }
 
@@ -1721,11 +1711,9 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                   {
                     gnss->measdata[num][cd.typeP] = cp[count]*LIGHTSPEED/1000.0/wl
                     +(rrmod[numsat]+rrint[numsat])*LIGHTSPEED/1000.0/wl;
-                    if(handle->lastlockmsm[j][i] != ll[count])
-                    {
+                    if(handle->lastlockmsm[j][i] > ll[count])
                       gnss->dataflags2[num] |= cd.lock;
-                      handle->lastlockmsm[j][i] = ll[count];
-                    }
+                    handle->lastlockmsm[j][i] = ll[count] > 255 ? 255 : ll[count];
                     gnss->dataflags[num] |= (1LL<<cd.typeP);
                   }
 
