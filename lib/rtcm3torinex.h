@@ -51,7 +51,7 @@
 
 #define RTCM3_MSM_NUMSIG      32
 #define RTCM3_MSM_NUMSAT      64
-#define RTCM3_MSM_NUMCELLS    64
+#define RTCM3_MSM_NUMCELLS    96 /* arbitrary limit */
 
 /* system identifiers */
 #define RTCM3_MSM_GPS     0
