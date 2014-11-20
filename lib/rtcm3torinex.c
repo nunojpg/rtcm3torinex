@@ -447,6 +447,58 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         ret = 1019;
       }
       break;
+    case 1043:
+      if(handle->GPSWeek)
+      {
+        struct sbasephemeris *gs;
+        int sv, i, time, tod, day;
+        gs = &handle->ephemerisSBAS;
+        memset(gs, 0, sizeof(*gs));
+
+        GETBITS(sv, 6)
+        gs->satellite = PRN_SBAS_START+sv;
+        GETBITS(gs->IODN, 8)
+        GETBITS(time, 13)
+        time <<= 4;
+        gs->GPSweek_TOE = handle->GPSWeek;
+        GETBITS(gs->URA, 4)
+        GETFLOATSIGN(gs->x_pos, 30, 0.08)
+        GETFLOATSIGN(gs->y_pos, 30, 0.08)
+        GETFLOATSIGN(gs->z_pos, 25, 0.4)
+        GETFLOATSIGN(gs->x_velocity, 17, 0.000625)
+        GETFLOATSIGN(gs->y_velocity, 17, 0.000625)
+        GETFLOATSIGN(gs->z_velocity, 18, 0.004)
+        GETFLOATSIGN(gs->x_acceleration, 10, 0.0000125)
+        GETFLOATSIGN(gs->y_acceleration, 10, 0.0000125)
+        GETFLOATSIGN(gs->z_acceleration, 10, 0.0000625)
+        GETFLOATSIGN(gs->agf0, 12, 1.0/(1<<30)/(1<<1))
+        GETFLOATSIGN(gs->agf1, 8, 1.0/(1<<30)/(1<<10))
+
+        /* calculate time */
+        tod = handle->GPSTOW%(24*60*60);
+        day = handle->GPSTOW/(24*60*60);
+        if(time > 19*60*60 && tod < 5*60*60)
+          --day;
+        else if(time < 5*60*60 && tod > 19*60*60)
+          ++day;
+        time += day*24*60*60;
+        if(time > 7*24*60*60)
+          ++gs->GPSweek_TOE;
+        else if(time < 0)
+          --gs->GPSweek_TOE;
+        gs->TOE = time;
+
+        i = (gs->GPSweek_TOE - handle->GPSWeek)*7*24*60*60
+        + (gs->TOE - handle->GPSTOW) - 2*60*60;
+        if(i > 5*60*60 && i < 8*60*60)
+        {
+          handle->GPSTOW = gs->TOE;
+          handle->GPSWeek = gs->GPSweek_TOE;
+        }
+        gs->TOW = 0.9999E9;
+        ret = 1043;
+      }
+      break;
     case 1044:
       {
         struct gpsephemeris *ge;
@@ -2488,7 +2540,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
     int r;
     while((r = RTCM3Parser(Parser)))
     {
-      if(r == 1020 || r == 1019 || r == 1044)
+      if(r == 1020 || r == 1019 || r == 1044 || r == 1043)
       {
         FILE *file = 0;
 
@@ -2513,6 +2565,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
             Parser->qzssephemeris = 0;
             Parser->gpsephemeris = 0;
             Parser->glonassephemeris = 0;
+            Parser->sbasephemeris = 0;
             file = Parser->gpsfile;
           }
         }
@@ -2558,6 +2611,26 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
             }
             file = Parser->gpsfile;
           }
+          else if(r == 1043)
+          {
+            if(Parser->sbasephemeris)
+            {
+              if(!(Parser->sbasfile = fopen(Parser->sbasephemeris, "w")))
+              {
+                RTCM3Error("Could not open SBAS ephemeris output file.\n");
+              }
+              else
+              {
+                char buffer[100];
+                fprintf(Parser->sbasfile,
+                "%9.2f%11sN: SBAS NAV DATA%24sRINEX VERSION / TYPE\n", 2.1, "", "");
+                HandleRunBy(buffer, sizeof(buffer), 0, Parser->rinex3);
+                fprintf(Parser->sbasfile, "%s\n%60sEND OF HEADER\n", buffer, "");
+              }
+              Parser->sbasephemeris = 0;
+            }
+            file = Parser->sbasfile;
+          }
           else if(r == 1044)
           {
             if(Parser->qzssephemeris)
@@ -2581,6 +2654,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
         }
         if(file)
         {
+          const char *sep = "   ";
           if(r == 1020)
           {
             struct glonassephemeris *e = &Parser->ephemerisGLONASS;
@@ -2593,19 +2667,52 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
             i = e->tk-3*60*60; if(i < 0) i += 86400;
 
             if(Parser->rinex3)
+            {
               ConvLine(file, "R%02d %04d %02d %02d %02d %02d %02d%19.12e%19.12e%19.12e\n",
               e->almanac_number, cti.year, cti.month, cti.day, cti.hour, cti.minute,
               cti.second, -e->tau, e->gamma, (double) i);
+              sep = "    ";
+            }
             else
+            {
               ConvLine(file, "%02d %02d %02d %02d %02d %02d%5.1f%19.12e%19.12e%19.12e\n",
               e->almanac_number, cti.year%100, cti.month, cti.day, cti.hour, cti.minute,
               (double) cti.second, -e->tau, e->gamma, (double) i);
-            ConvLine(file, "   %19.12e%19.12e%19.12e%19.12e\n", e->x_pos,
+            }
+            ConvLine(file, "%s%19.12e%19.12e%19.12e%19.12e\n", sep, e->x_pos,
             e->x_velocity, e->x_acceleration, (e->flags & GLOEPHF_UNHEALTHY) ? 1.0 : 0.0);
-            ConvLine(file, "   %19.12e%19.12e%19.12e%19.12e\n", e->y_pos,
+            ConvLine(file, "%s%19.12e%19.12e%19.12e%19.12e\n", sep, e->y_pos,
             e->y_velocity, e->y_acceleration, (double) e->frequency_number);
-            ConvLine(file, "   %19.12e%19.12e%19.12e%19.12e\n", e->z_pos,
+            ConvLine(file, "%s%19.12e%19.12e%19.12e%19.12e\n", sep, e->z_pos,
             e->z_velocity, e->z_acceleration, (double) e->E);
+          }
+          else if(r == 1043)
+          {
+            struct sbasephemeris *e = &Parser->ephemerisSBAS;
+            struct converttimeinfo cti;
+            converttime(&cti, e->GPSweek_TOE, e->TOE);
+            if(Parser->rinex3)
+            {
+              ConvLine(file, "S%02d %04d %2d %2d %2d %2d %2d%19.12e%19.12e%19.12e\n",
+              e->satellite-100, cti.year, cti.month, cti.day, cti.hour, cti.minute,
+              cti.second, e->agf0, e->agf1, (double)e->TOW);
+              sep = "    ";
+            }
+            else
+            {
+              ConvLine(file, "%02d %02d %02d %02d %02d %02d%5.1f%19.12e%19.12e%19.12e\n",
+              e->satellite-100, cti.year%100, cti.month, cti.day, cti.hour, cti.minute,
+              (double)cti.second, e->agf0, e->agf1, (double)e->TOW);
+            }
+            /* X, health */
+            ConvLine(file, "%s%19.12e%19.12e%19.12e%19.12e\n", sep, e->x_pos,
+            e->x_velocity, e->x_acceleration, e->URA == 15 ? 1.0 : 0.0);
+            /* Y, accuracy */
+            ConvLine(file, "%s%19.12e%19.12e%19.12e%19.12e\n", sep, e->y_pos,
+            e->y_velocity, e->y_acceleration, (double)e->URA);
+            /* Z */
+            ConvLine(file, "%s%19.12e%19.12e%19.12e%19.12e\n", sep, e->z_pos,
+            e->z_velocity, e->z_acceleration, (double)e->IODN);
           }
           else /* if(r == 1019 || r == 1044) */
           {
@@ -2614,7 +2721,6 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
             unsigned long int i;       /* temporary variable */
             struct converttimeinfo cti;
             converttime(&cti, e->GPSweek, e->TOC);
-            const char *sep = "   ";
             int qzss = 0;
             int num = e->satellite;
 
@@ -3258,6 +3364,7 @@ struct Args
   const char *nmea;
   const char *data;
   const char *headerfile;
+  const char *sbasephemeris;
   const char *gpsephemeris;
   const char *qzssephemeris;
   const char *glonassephemeris;
@@ -3279,6 +3386,7 @@ static struct option opts[] = {
 { "gpsephemeris",     required_argument, 0, 'E'},
 { "qzssephemeris",    required_argument, 0, 'Q'},
 { "glonassephemeris", required_argument, 0, 'G'},
+{ "sbasephemeris",    required_argument, 0, 'B'},
 { "rinex3",           no_argument,       0, '3'},
 { "changeobs",        no_argument,       0, 'O'},
 { "proxyport",        required_argument, 0, 'R'},
@@ -3288,7 +3396,7 @@ static struct option opts[] = {
 { "help",             no_argument,       0, 'h'},
 {0,0,0,0}};
 #endif
-#define ARGOPT "-d:s:p:r:t:f:u:E:G:Q:M:S:R:n:h3O"
+#define ARGOPT "-d:s:p:r:t:f:u:E:G:B:Q:M:S:R:n:h3O"
 
 enum MODE { HTTP = 1, RTSP = 2, NTRIP1 = 3, AUTO = 4, END };
 
@@ -3419,6 +3527,7 @@ static int getargs(int argc, char **argv, struct Args *args)
   args->headerfile = 0;
   args->gpsephemeris = 0;
   args->qzssephemeris = 0;
+  args->sbasephemeris = 0;
   args->glonassephemeris = 0;
   args->rinex3 = 0;
   args->nmea = 0;
@@ -3443,6 +3552,7 @@ static int getargs(int argc, char **argv, struct Args *args)
     case 'd': args->data = optarg; break;
     case 'f': args->headerfile = optarg; break;
     case 'E': args->gpsephemeris = optarg; break;
+    case 'B': args->sbasephemeris = optarg; break;
     case 'G': args->glonassephemeris = optarg; break;
     case 'Q': args->qzssephemeris = optarg; break;
     case 'r': args->port = optarg; break;
@@ -3520,6 +3630,7 @@ static int getargs(int argc, char **argv, struct Args *args)
     " -E " LONG_OPT("--gpsephemeris     ") "output file for GPS ephemeris data\n"
     " -G " LONG_OPT("--glonassephemeris ") "output file for GLONASS ephemeris data\n"
     " -Q " LONG_OPT("--qzssephemeris    ") "output file for QZSS ephemeris data\n"
+    " -B " LONG_OPT("--sbasephemeris    ") "output file for SBAS ephemeris data\n"
     " -3 " LONG_OPT("--rinex3           ") "output RINEX type 3 data\n"
     " -S " LONG_OPT("--proxyhost        ") "proxy name or address\n"
     " -R " LONG_OPT("--proxyport        ") "proxy port, optional (default 2101)\n"
@@ -3625,6 +3736,7 @@ int main(int argc, char **argv)
     Parser.glonassephemeris = args.glonassephemeris;
     Parser.gpsephemeris = args.gpsephemeris;
     Parser.qzssephemeris = args.qzssephemeris;
+    Parser.sbasephemeris = args.sbasephemeris;
     Parser.rinex3 = args.rinex3;
     Parser.changeobs = args.changeobs;
 

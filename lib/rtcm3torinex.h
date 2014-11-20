@@ -400,6 +400,26 @@ struct glonassephemeris {
   double z_acceleration;     /* [km/s^2][f3b36-40] */
 };
 
+struct sbasephemeris {
+  int    satellite;
+  int    IODN;             /*          [bits  14- 21] */
+  int    GPSweek_TOE;
+  int    TOW;
+  int    TOE;              /*  [s]     [bits  22- 34] */
+  double agf0;             /*  [s]     [bits 206-217] */
+  double agf1;             /*  [s/s]   [bits 218-225] */
+  double x_pos;            /*  [km]    [bits  39- 68] */
+  double x_velocity;       /*  [km/s]  [bits 124-140] */
+  double x_acceleration;   /*  [km/s^2][bits 176-185] */
+  double y_pos;            /*  [km]    [bits  69- 98] */
+  double y_velocity;       /*  [km/s]  [bits 141-157] */
+  double y_acceleration;   /*  [km/s^2][bits 186-195] */
+  double z_pos;            /*  [km]    [bits  99-123] */
+  double z_velocity;       /*  [km/s]  [bits 158-175] */
+  double z_acceleration;   /*  [km/s^2][bits 196-205] */
+  int    URA;              /*          [bits  35- 38] */
+};
+
 struct galileoephemeris {
   int    flags;            /* GALEPHF_xxx */
   int    satellite;        /* SV ID */
@@ -450,6 +470,7 @@ struct RTCM3ParserData {
   struct gpsephemeris ephemerisGPS;
   struct galileoephemeris ephemerisGALILEO;
   struct glonassephemeris ephemerisGLONASS;
+  struct sbasephemeris ephemerisSBAS;
   struct gnssdata DataNew;
   int    GLOFreq[PRN_GLONASS_NUM]; /* frequency numbers of GLONASS + 100 */
   int    size;
@@ -492,9 +513,11 @@ struct RTCM3ParserData {
   const char * glonassephemeris;
   const char * gpsephemeris;
   const char * qzssephemeris;
+  const char * sbasephemeris;
   FILE *       glonassfile;
   FILE *       gpsfile;
   FILE *       qzssfile;
+  FILE *       sbasfile;
 };
 
 #ifndef PRINTFARG
