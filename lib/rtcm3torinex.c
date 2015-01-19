@@ -1909,13 +1909,20 @@ int rinex3)
   t = time(&t);
   t2 = gmtime(&t);
   if(u) *u = user;
-  return 1+snprintf(buffer, buffersize,
-  rinex3 ?
-  "RTCM3TORINEX %-7.7s%-20.20s%04d%02d%02d %02d%02d%02d UTC "
-  "PGM / RUN BY / DATE" :
-  "RTCM3TORINEX %-7.7s%-20.20s%04d-%02d-%02d %02d:%02d    "
-  "PGM / RUN BY / DATE", revisionstr, user, 1900+t2->tm_year,
-  t2->tm_mon+1, t2->tm_mday, t2->tm_hour, t2->tm_min, t2->tm_sec);
+  if(rinex3)
+  {
+    return 1+snprintf(buffer, buffersize,
+    "RTCM3TORINEX %-7.7s%-20.20s%04d%02d%02d %02d%02d%02d UTC "
+    "PGM / RUN BY / DATE", revisionstr, user, 1900+t2->tm_year,
+    t2->tm_mon+1, t2->tm_mday, t2->tm_hour, t2->tm_min, t2->tm_sec);
+  }
+  else
+  {
+    return 1+snprintf(buffer, buffersize,
+    "RTCM3TORINEX %-7.7s%-20.20s%04d-%02d-%02d %02d:%02d    "
+    "PGM / RUN BY / DATE", revisionstr, user, 1900+t2->tm_year,
+    t2->tm_mon+1, t2->tm_mday, t2->tm_hour, t2->tm_min);
+  }
 }
 
 #ifdef NO_RTCM3_MAIN
