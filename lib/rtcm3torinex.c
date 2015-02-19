@@ -448,6 +448,63 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         ret = 1019;
       }
       break;
+    case RTCM3ID_BDS:
+      {
+        struct bdsephemeris *be;
+        int sv, i, week, tow;
+        be = &handle->ephemerisBDS;
+        memset(be, 0, sizeof(*be));
+
+        GETBITS(sv, 6)
+        be->satellite += PRN_BDS_START-1;
+        GETBITS(be->BDSweek, 13)
+        GETBITS(be->URAI, 4)
+        GETFLOATSIGN(be->IDOT, 14, 1.0/(double)(1<<30)/(double)(1<<13))
+        GETBITS(be->AODE, 5)
+        GETBITS(be->TOC, 17)
+        be->TOC <<= 3;
+        GETFLOATSIGN(be->clock_driftrate, 11, 1.0/(double)(1<<30)/(double)(1<<30)/(double)(1<<6))
+        GETFLOATSIGN(be->clock_drift, 22, 1.0/(double)(1<<30)/(double)(1<<20))
+        GETFLOATSIGN(be->clock_bias, 24, 1.0/(double)(1<<30)/(double)(1<<3))
+        GETBITS(be->AODC, 5)
+        GETFLOATSIGN(be->Crs, 18, 1.0/(double)(1<<6))
+        GETFLOATSIGN(be->Delta_n, 16, 1.0/(double)(1<<30)/(double)(1<<13))
+        GETFLOATSIGN(be->M0, 32, 1.0/(double)(1<<30)/(double)(1<<1))
+        GETFLOATSIGN(be->Cuc, 18, 1.0/(double)(1<<30)/(double)(1<<1))
+        GETFLOAT(be->e, 32, 1.0/(double)(1<<30)/(double)(1<<3))
+        GETFLOATSIGN(be->Cus, 18, 1.0/(double)(1<<30)/(double)(1<<1))
+        GETFLOAT(be->sqrt_A, 32, 1.0/(double)(1<<19))
+        GETBITS(be->TOE, 17)
+        be->TOE <<= 3;
+        GETFLOATSIGN(be->Cic, 18, 1.0/(double)(1<<30)/(double)(1<<1))
+        GETFLOATSIGN(be->OMEGA0, 32, 1.0/(double)(1<<30)/(double)(1<<1))
+        GETFLOATSIGN(be->Cis, 18, 1.0/(double)(1<<30)/(double)(1<<1))
+        GETFLOATSIGN(be->i0, 32, 1.0/(double)(1<<30)/(double)(1<<1))
+        GETFLOATSIGN(be->Crc, 18, 1.0/(double)(1<<8))
+        GETFLOATSIGN(be->omega, 32, 1.0/(double)(1<<30)/(double)(1<<1))
+        GETFLOATSIGN(be->OMEGADOT, 24, 1.0/(double)(1<<30)/(double)(1<<13))
+        GETFLOATSIGN(be->TGD_B1_B3, 10, 0.000000001)
+        GETFLOATSIGN(be->TGD_B2_B3, 10, 0.000000001)
+        GETBITS(sv, 1)
+        if(sv)
+          be->flags |= BDSEPHF_SATH1;
+        week = 1356+be->BDSweek;
+        tow = 14+be->TOE;
+        if(tow > 7*24*60*60) /* overflow due to leap */
+        {
+          ++week;
+          tow -=  7*24*60*60;
+        }
+        i = (week - (int)handle->GPSWeek)*7*24*60*60
+        + (tow - (int)handle->GPSTOW) - 2*60*60;
+        if(i > 5*60*60 && i < 8*60*60)
+        {
+          handle->GPSTOW = tow;
+          handle->GPSWeek = week;
+        }
+        ret = RTCM3ID_BDS;
+      }
+      break;
     case 1043:
       if(handle->GPSWeek)
       {
@@ -1292,25 +1349,25 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
           {GNSSENTRY_C1NDATA,GNSSENTRY_L1NDATA,GNSSENTRY_D1NDATA,
           GNSSENTRY_S1NDATA,GNSSDF2_LOCKLOSSL1,GPS_WAVELENGTH_L1,"1X"}
         };
-        struct CodeData compass[RTCM3_MSM_NUMSIG] =
+        struct CodeData bds[RTCM3_MSM_NUMSIG] =
         {
           {0,0,0,0,0,0,0},
           {GNSSENTRY_CB1DATA,GNSSENTRY_LB1DATA,GNSSENTRY_DB1DATA,
-          GNSSENTRY_SB1DATA,GNSSDF2_LOCKLOSSB1,COMPASS_WAVELENGTH_B1,"1I"},
+          GNSSENTRY_SB1DATA,GNSSDF2_LOCKLOSSB1,BDS_WAVELENGTH_B1,"1I"},
           {0,0,0,0,0,0,0},
           {0,0,0,0,0,0,0},
           {0,0,0,0,0,0,0},
           {0,0,0,0,0,0,0},
           {0,0,0,0,0,0,0},
           {GNSSENTRY_CB3DATA,GNSSENTRY_LB3DATA,GNSSENTRY_DB3DATA,
-          GNSSENTRY_SB3DATA,GNSSDF2_LOCKLOSSB3,COMPASS_WAVELENGTH_B3,"6I"},
+          GNSSENTRY_SB3DATA,GNSSDF2_LOCKLOSSB3,BDS_WAVELENGTH_B3,"6I"},
           {0,0,0,0,0,0,0},
           {0,0,0,0,0,0,0},
           {0,0,0,0,0,0,0},
           {0,0,0,0,0,0,0},
           {0,0,0,0,0,0,0},
           {GNSSENTRY_CB2DATA,GNSSENTRY_LB2DATA,GNSSENTRY_DB2DATA,
-          GNSSENTRY_SB2DATA,GNSSDF2_LOCKLOSSB2,COMPASS_WAVELENGTH_B2,"7I"},
+          GNSSENTRY_SB2DATA,GNSSDF2_LOCKLOSSB2,BDS_WAVELENGTH_B2,"7I"},
           {0,0,0,0,0,0,0},
           {0,0,0,0,0,0,0},
           {0,0,0,0,0,0,0},
@@ -1347,8 +1404,8 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         SKIPBITS(12)
         if(type >= 1121)
         {
-          sys = RTCM3_MSM_COMPASS;
-          start = PRN_COMPASS_START;
+          sys = RTCM3_MSM_BDS;
+          start = PRN_BDS_START;
         }
         else if(type >= 1111)
         {
@@ -1376,7 +1433,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
 
         switch(sys)
         {
-        case RTCM3_MSM_COMPASS:
+        case RTCM3_MSM_BDS:
           GETBITS(i,30)
           i += 14000;
           if(i >= 7*24*60*60*1000)
@@ -1586,8 +1643,8 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
                 cd = qzss[RTCM3_MSM_NUMSIG-j-1];
                 wl = cd.wl;
                 break;
-              case RTCM3_MSM_COMPASS:
-                cd = compass[RTCM3_MSM_NUMSIG-j-1];
+              case RTCM3_MSM_BDS:
+                cd = bds[RTCM3_MSM_NUMSIG-j-1];
                 wl = cd.wl;
                 break;
               case RTCM3_MSM_GPS:  case RTCM3_MSM_SBAS:
@@ -1862,6 +1919,26 @@ void converttime(struct converttimeinfo *c, int week, int tow)
   c->day = doy - j;
 }
 
+void converttimebds(struct converttimeinfo *c, int week, int tow)
+{
+  int i, k, doy, j; /* temporary variables */
+  j = week*(7*24*60*60) + tow;
+  for(i = 2006; j >= (k = (365+longyear(i,0))*24*60*60); ++i)
+    j -= k;
+  c->year = i;
+  doy = 1+ (j / (24*60*60));
+  j %= (24*60*60);
+  c->hour = j / (60*60);
+  j %= (60*60);
+  c->minute = j / 60;
+  c->second = j % 60;
+  j = 0;
+  for(i = 1; j + (k = months[i] + longyear(c->year,i)) < doy; ++i)
+    j += k;
+  c->month = i;
+  c->day = doy - j;
+}
+
 #ifndef NO_RTCM3_MAIN
 void RTCM3Error(const char *fmt, ...)
 {
@@ -2117,19 +2194,19 @@ size_t buffersize, struct HeaderData *hdata)
       buffer += i; buffersize -= i;
     }
 
-    INITFLAGS(COMPASS)
-    CHECKFLAGSNEW(COMPASS, CB1,  C2I)
-    CHECKFLAGSNEW(COMPASS, LB1,  L2I)
-    CHECKFLAGSNEW(COMPASS, DB1,  D2I)
-    CHECKFLAGSNEW(COMPASS, SB1,  S2I)
-    CHECKFLAGSNEW(COMPASS, CB2,  C7I)
-    CHECKFLAGSNEW(COMPASS, LB2,  L7I)
-    CHECKFLAGSNEW(COMPASS, DB2,  D7I)
-    CHECKFLAGSNEW(COMPASS, SB2,  S7I)
-    CHECKFLAGSNEW(COMPASS, CB3,  C6I)
-    CHECKFLAGSNEW(COMPASS, LB3,  L6I)
-    CHECKFLAGSNEW(COMPASS, DB3,  D6I)
-    CHECKFLAGSNEW(COMPASS, SB3,  S6I)
+    INITFLAGS(BDS)
+    CHECKFLAGSNEW(BDS, CB1,  C2I)
+    CHECKFLAGSNEW(BDS, LB1,  L2I)
+    CHECKFLAGSNEW(BDS, DB1,  D2I)
+    CHECKFLAGSNEW(BDS, SB1,  S2I)
+    CHECKFLAGSNEW(BDS, CB2,  C7I)
+    CHECKFLAGSNEW(BDS, LB2,  L7I)
+    CHECKFLAGSNEW(BDS, DB2,  D7I)
+    CHECKFLAGSNEW(BDS, SB2,  S7I)
+    CHECKFLAGSNEW(BDS, CB3,  C6I)
+    CHECKFLAGSNEW(BDS, LB3,  L6I)
+    CHECKFLAGSNEW(BDS, DB3,  D6I)
+    CHECKFLAGSNEW(BDS, SB3,  S6I)
 
     if(modified)
     {
@@ -2137,11 +2214,11 @@ size_t buffersize, struct HeaderData *hdata)
         hdata->data.named.typesofobsC = buffer;
       i = 1+snprintf(buffer, buffersize,
       "C  %3d%-52.52s  SYS / # / OBS TYPES",
-      Parser->info[RTCM3_MSM_COMPASS].numtypes, Parser->fieldbufferCOMPASS);
-      if(Parser->info[RTCM3_MSM_COMPASS].numtypes>13)
+      Parser->info[RTCM3_MSM_BDS].numtypes, Parser->fieldbufferBDS);
+      if(Parser->info[RTCM3_MSM_BDS].numtypes>13)
       {
         i += snprintf(buffer+i-1, buffersize,
-        "\n      %-52.52s  SYS / # / OBS TYPES", Parser->fieldbufferCOMPASS+13*4);
+        "\n      %-52.52s  SYS / # / OBS TYPES", Parser->fieldbufferBDS+13*4);
       }
       buffer += i; buffersize -= i;
     }
@@ -2548,7 +2625,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
     int r;
     while((r = RTCM3Parser(Parser)))
     {
-      if(r == 1020 || r == 1019 || r == 1044 || r == 1043)
+      if(r == 1020 || r == RTCM3ID_BDS || r == 1019 || r == 1044 || r == 1043)
       {
         FILE *file = 0;
 
@@ -2659,6 +2736,26 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
             }
             file = Parser->qzssfile;
           }
+          else if(r == RTCM3ID_BDS)
+          {
+            if(Parser->bdsephemeris)
+            {
+              if(!(Parser->bdsfile = fopen(Parser->bdsephemeris, "w")))
+              {
+                RTCM3Error("Could not open BDS ephemeris output file.\n");
+              }
+              else
+              {
+                char buffer[100];
+                fprintf(Parser->bdsfile,
+                "%9.2f%11sN: BDS NAV DATA%25sRINEX VERSION / TYPE\n", 2.1, "", "");
+                HandleRunBy(buffer, sizeof(buffer), 0, Parser->rinex3);
+                fprintf(Parser->bdsfile, "%s\n%60sEND OF HEADER\n", buffer, "");
+              }
+              Parser->bdsephemeris = 0;
+            }
+            file = Parser->bdsfile;
+          }
         }
         if(file)
         {
@@ -2722,6 +2819,55 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
             ConvLine(file, "%s%19.12e%19.12e%19.12e%19.12e\n", sep, e->z_pos,
             e->z_velocity, e->z_acceleration, (double)e->IODN);
           }
+          else if(r == RTCM3ID_BDS)
+          {
+            struct bdsephemeris *e = &Parser->ephemerisBDS;
+            double d;                 /* temporary variable */
+            struct converttimeinfo cti;
+            converttimebds(&cti, e->BDSweek, e->TOC);
+            int num = e->satellite-PRN_BDS_START+1;
+
+            if(Parser->rinex3)
+            {
+              ConvLine(file,
+              "C%02d %04d %02d %02d %02d %02d %02d%19.12e%19.12e%19.12e\n",
+              num, cti.year, cti.month, cti.day, cti.hour,
+              cti.minute, cti.second, e->clock_bias, e->clock_drift,
+              e->clock_driftrate);
+              sep = "    ";
+            }
+            else
+            {
+              ConvLine(file,
+              "%02d %02d %02d %02d %02d %02d%05.1f%19.12e%19.12e%19.12e\n",
+              num, cti.year%100, cti.month, cti.day, cti.hour,
+              cti.minute, (double) cti.second, e->clock_bias, e->clock_drift,
+              e->clock_driftrate);
+            }
+            ConvLine(file, "%s%19.12e%19.12e%19.12e%19.12e\n", sep,
+            (double)e->AODE, e->Crs, e->Delta_n, e->M0);
+            ConvLine(file, "%s%19.12e%19.12e%19.12e%19.12e\n", sep, e->Cuc,
+            e->e, e->Cus, e->sqrt_A);
+            ConvLine(file, "%s%19.12e%19.12e%19.12e%19.12e\n", sep,
+            (double) e->TOE, e->Cic, e->OMEGA0, e->Cis);
+            ConvLine(file, "%s%19.12e%19.12e%19.12e%19.12e\n", sep, e->i0,
+            e->Crc, e->omega, e->OMEGADOT);
+            ConvLine(file, "%s%19.12e                   %19.12e\n", sep, e->IDOT,
+            (double) e->BDSweek);
+            if(e->URAI <= 6) /* URA index */
+              d = ceil(10.0*pow(2.0, 1.0+((double)e->URAI)/2.0))/10.0;
+            else
+              d = ceil(10.0*pow(2.0, ((double)e->URAI)/2.0))/10.0;
+            /* 15 indicates not to use satellite. We can't handle this special
+               case, so we create a high "non"-accuracy value. */
+            ConvLine(file, "%s%19.12e%19.12e%19.12e%19.12e\n", sep, d,
+            ((double) (e->flags & BDSEPHF_SATH1)), e->TGD_B1_B3,
+            e->TGD_B2_B3);
+
+            ConvLine(file, "%s%19.12e%19.12e\n", sep, ((double)e->TOW),
+            (double) e->AODC);
+            /* TOW, AODC */
+          }
           else /* if(r == 1019 || r == 1044) */
           {
             struct gpsephemeris *e = &Parser->ephemerisGPS;
@@ -2782,7 +2928,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
             ConvLine(file, "%s%19.12e%19.12e\n", sep, ((double)e->TOW),
             (i & GPSEPHF_6HOURSFIT) ? (Parser->rinex3 ? 1 : qzss ? 4.0 : 6.0)
             : (Parser->rinex3 ? 0 : qzss ? 2.0 : 4.0));
-            /* TOW */
+            /* TOW,Fit */
           }
         }
       }
@@ -2871,11 +3017,11 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
               RTCM3Text("J%02d", Parser->Data.satellites[i] - (PRN_QZSS_START-1));
               sys[RTCM3_MSM_QZSS] = 1;
             }
-            else if(Parser->Data.satellites[i] >= PRN_COMPASS_START
-            && Parser->Data.satellites[i] <= PRN_COMPASS_END)
+            else if(Parser->Data.satellites[i] >= PRN_BDS_START
+            && Parser->Data.satellites[i] <= PRN_BDS_END)
             {
-              RTCM3Text("C%02d", Parser->Data.satellites[i] - (PRN_COMPASS_START-1));
-              sys[RTCM3_MSM_COMPASS] = 1;
+              RTCM3Text("C%02d", Parser->Data.satellites[i] - (PRN_BDS_START-1));
+              sys[RTCM3_MSM_BDS] = 1;
             }
             else if(Parser->Data.satellites[i] >= PRN_SBAS_START
             && Parser->Data.satellites[i] <= PRN_SBAS_END)
@@ -2980,18 +3126,18 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
                 }
               }
             }
-            else if(sys[RTCM3_MSM_COMPASS])
+            else if(sys[RTCM3_MSM_BDS])
             {
-              for(j = 0; j < Parser->info[RTCM3_MSM_COMPASS].numtypes; ++j)
+              for(j = 0; j < Parser->info[RTCM3_MSM_BDS].numtypes; ++j)
               {
-                long long df = Parser->info[RTCM3_MSM_COMPASS].flags[j];
-                int pos = Parser->info[RTCM3_MSM_COMPASS].pos[j];
+                long long df = Parser->info[RTCM3_MSM_BDS].flags[j];
+                int pos = Parser->info[RTCM3_MSM_BDS].pos[j];
                 if((Parser->Data.dataflags[i] & df)
                 && !isnan(Parser->Data.measdata[i][pos])
                 && !isinf(Parser->Data.measdata[i][pos])
                 && (Parser->Data.codetype[i][pos]
-                  && Parser->info[RTCM3_MSM_COMPASS].type[pos]
-                  && Parser->info[RTCM3_MSM_COMPASS].type[pos]
+                  && Parser->info[RTCM3_MSM_BDS].type[pos]
+                  && Parser->info[RTCM3_MSM_BDS].type[pos]
                   == Parser->Data.codetype[i][pos][1]))
                 {
                   char lli = ' ';
@@ -3176,10 +3322,10 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
             && Parser->Data.satellites[i] <= PRN_QZSS_END)
               RTCM3Text("J%02d", Parser->Data.satellites[i]
               - (PRN_QZSS_START-1));
-            else if(Parser->Data.satellites[i] >= PRN_COMPASS_START
-            && Parser->Data.satellites[i] <= PRN_COMPASS_END)
+            else if(Parser->Data.satellites[i] >= PRN_BDS_START
+            && Parser->Data.satellites[i] <= PRN_BDS_END)
               RTCM3Text("C%02d", Parser->Data.satellites[i]
-              - (PRN_COMPASS_START-1));
+              - (PRN_BDS_START-1));
             else
               RTCM3Text("%3d", Parser->Data.satellites[i]);
           }
@@ -3213,10 +3359,10 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
               && Parser->Data.satellites[i] <= PRN_QZSS_END)
                 RTCM3Text("J%02d", Parser->Data.satellites[i]
                 - (PRN_QZSS_START-1));
-              else if(Parser->Data.satellites[i] >= PRN_COMPASS_START
-              && Parser->Data.satellites[i] <= PRN_COMPASS_END)
+              else if(Parser->Data.satellites[i] >= PRN_BDS_START
+              && Parser->Data.satellites[i] <= PRN_BDS_END)
                 RTCM3Text("C%02d", Parser->Data.satellites[i]
-                - (PRN_COMPASS_START-1));
+                - (PRN_BDS_START-1));
               else
                 RTCM3Text("%3d", Parser->Data.satellites[i]);
             }
@@ -3376,6 +3522,7 @@ struct Args
   const char *gpsephemeris;
   const char *qzssephemeris;
   const char *glonassephemeris;
+  const char *bdsephemeris;
 };
 
 /* option parsing */
@@ -3391,6 +3538,7 @@ static struct option opts[] = {
 { "timeout",          required_argument, 0, 't'},
 { "header",           required_argument, 0, 'f'},
 { "user",             required_argument, 0, 'u'},
+{ "bdsephemeris",     required_argument, 0, 'C'},
 { "gpsephemeris",     required_argument, 0, 'E'},
 { "qzssephemeris",    required_argument, 0, 'Q'},
 { "glonassephemeris", required_argument, 0, 'G'},
@@ -3404,7 +3552,7 @@ static struct option opts[] = {
 { "help",             no_argument,       0, 'h'},
 {0,0,0,0}};
 #endif
-#define ARGOPT "-d:s:p:r:t:f:u:E:G:B:Q:M:S:R:n:h3O"
+#define ARGOPT "-d:s:p:r:t:f:u:E:C:G:B:Q:M:S:R:n:h3O"
 
 enum MODE { HTTP = 1, RTSP = 2, NTRIP1 = 3, AUTO = 4, END };
 
@@ -3537,6 +3685,7 @@ static int getargs(int argc, char **argv, struct Args *args)
   args->qzssephemeris = 0;
   args->sbasephemeris = 0;
   args->glonassephemeris = 0;
+  args->bdsephemeris = 0;
   args->rinex3 = 0;
   args->nmea = 0;
   args->changeobs = 0;
@@ -3559,6 +3708,7 @@ static int getargs(int argc, char **argv, struct Args *args)
     case 'p': args->password = optarg; break;
     case 'd': args->data = optarg; break;
     case 'f': args->headerfile = optarg; break;
+    case 'C': args->bdsephemeris = optarg; break;
     case 'E': args->gpsephemeris = optarg; break;
     case 'B': args->sbasephemeris = optarg; break;
     case 'G': args->glonassephemeris = optarg; break;
@@ -3635,6 +3785,7 @@ static int getargs(int argc, char **argv, struct Args *args)
     " -r " LONG_OPT("--port             ") "the server port number (default 2101)\n"
     " -t " LONG_OPT("--timeout          ") "timeout in seconds (default 60)\n"
     " -u " LONG_OPT("--user             ") "the user name\n"
+    " -C " LONG_OPT("--bdsephemeris     ") "output file for BDS ephemeris data\n"
     " -E " LONG_OPT("--gpsephemeris     ") "output file for GPS ephemeris data\n"
     " -G " LONG_OPT("--glonassephemeris ") "output file for GLONASS ephemeris data\n"
     " -Q " LONG_OPT("--qzssephemeris    ") "output file for QZSS ephemeris data\n"
@@ -3743,6 +3894,7 @@ int main(int argc, char **argv)
     Parser.headerfile = args.headerfile;
     Parser.glonassephemeris = args.glonassephemeris;
     Parser.gpsephemeris = args.gpsephemeris;
+    Parser.bdsephemeris = args.bdsephemeris;
     Parser.qzssephemeris = args.qzssephemeris;
     Parser.sbasephemeris = args.sbasephemeris;
     Parser.rinex3 = args.rinex3;

@@ -39,8 +39,8 @@
 #define PRN_GIOVE_END             102
 #define PRN_SBAS_START            120
 #define PRN_SBAS_END              141
-#define PRN_COMPASS_START         161
-#define PRN_COMPASS_END           190
+#define PRN_BDS_START             161
+#define PRN_BDS_END               190
 #define PRN_QZSS_START            193
 #define PRN_QZSS_END              202
 
@@ -59,7 +59,7 @@
 #define RTCM3_MSM_GALILEO 2
 #define RTCM3_MSM_SBAS    3
 #define RTCM3_MSM_QZSS    4
-#define RTCM3_MSM_COMPASS 5
+#define RTCM3_MSM_BDS     5
 
 #define RTCM3_MSM_NUMSYS  6
 
@@ -276,12 +276,12 @@
 #define QZSS_WAVELENGTH_L5  (LIGHTSPEED / QZSS_FREQU_L5) /* m */
 #define QZSS_WAVELENGTH_LEX (LIGHTSPEED / QZSS_FREQU_LEX) /* m */
 
-#define COMPASS_FREQU_B1       1561098000.0  /* Hz */
-#define COMPASS_FREQU_B2       1207140000.0  /* Hz */
-#define COMPASS_FREQU_B3       1268520000.0  /* Hz */
-#define COMPASS_WAVELENGTH_B1  (LIGHTSPEED / COMPASS_FREQU_B1) /* m */
-#define COMPASS_WAVELENGTH_B2  (LIGHTSPEED / COMPASS_FREQU_B2) /* m */
-#define COMPASS_WAVELENGTH_B3  (LIGHTSPEED / COMPASS_FREQU_B3) /* m */
+#define BDS_FREQU_B1       1561098000.0  /* Hz */
+#define BDS_FREQU_B2       1207140000.0  /* Hz */
+#define BDS_FREQU_B3       1268520000.0  /* Hz */
+#define BDS_WAVELENGTH_B1  (LIGHTSPEED / BDS_FREQU_B1) /* m */
+#define BDS_WAVELENGTH_B2  (LIGHTSPEED / BDS_FREQU_B2) /* m */
+#define BDS_WAVELENGTH_B3  (LIGHTSPEED / BDS_FREQU_B3) /* m */
 
 #define PRN_GIOVE_OFFSET 51
 
@@ -364,11 +364,6 @@ struct gpsephemeris {
   double TGD;              /*  [s]     [s1w7b17-24]              */
 };
 
-#define GALEPHF_E5ADINVALID     (1<<0) /* E5aDVS set invalid */
-#define GALEPHF_E5BDINVALID     (1<<1) /* E5bDVS set invalid */
-#define GALEPHF_INAV            (1<<2) /* INAV data */
-#define GALEPHF_FNAV            (1<<3) /* FNAV data */
-
 #define GLOEPHF_UNHEALTHY       (1<<0) /* set if unhealty satellite, f2b78 */
 #define GLOEPHF_ALMANACHEALTHOK (1<<1) /* set if ALM health is available */
 #define GLOEPHF_ALMANACHEALTHY  (1<<2) /* set if Cn word is true */
@@ -420,6 +415,11 @@ struct sbasephemeris {
   int    URA;              /*          [bits  35- 38] */
 };
 
+#define GALEPHF_E5ADINVALID     (1<<0) /* E5aDVS set invalid */
+#define GALEPHF_E5BDINVALID     (1<<1) /* E5bDVS set invalid */
+#define GALEPHF_INAV            (1<<2) /* INAV data */
+#define GALEPHF_FNAV            (1<<3) /* FNAV data */
+
 struct galileoephemeris {
   int    flags;            /* GALEPHF_xxx */
   int    satellite;        /* SV ID */
@@ -452,6 +452,41 @@ struct galileoephemeris {
   int    E5bHS;
 };
 
+#define RTCM3ID_BDS 63
+#define BDSEPHF_SATH1      (1<<0) /* SatH1 is 1 */
+
+struct bdsephemeris {
+  int    flags;            /* BDSEPHF_xxx */
+  int    satellite;        /*  SV ID   */
+  int    AODE;             /*          */
+  int    URAI;             /*  [1..15] */
+  int    BDSweek;          /*          */
+  int    AODC;             /*          */
+  int    TOW;              /*  [s]     */
+  int    TOC;              /*  [s]     */
+  int    TOE;              /*  [s]     */
+  double clock_bias;       /*  [s]     */
+  double clock_drift;      /*  [s/s]   */
+  double clock_driftrate;  /*  [s/s^2] */
+  double Crs;              /*  [m]     */
+  double Delta_n;          /*  [rad/s] */
+  double M0;               /*  [rad]   */
+  double Cuc;              /*  [rad]   */
+  double e;                /*          */
+  double Cus;              /*  [rad]   */
+  double sqrt_A;           /*  [m^0.5] */
+  double Cic;              /*  [rad]   */
+  double OMEGA0;           /*  [rad]   */
+  double Cis;              /*  [rad]   */
+  double i0;               /*  [rad]   */
+  double Crc;              /*  [m]     */
+  double omega;            /*  [rad]   */
+  double OMEGADOT;         /*  [rad/s] */
+  double IDOT;             /*  [rad/s] */
+  double TGD_B1_B3;        /*  [s]     */
+  double TGD_B2_B3;        /*  [s]     */
+};
+
 struct DataInfo {
   long long flags[RINEXENTRY_NUMBER];
   int       pos[RINEXENTRY_NUMBER];
@@ -471,6 +506,7 @@ struct RTCM3ParserData {
   struct galileoephemeris ephemerisGALILEO;
   struct glonassephemeris ephemerisGLONASS;
   struct sbasephemeris ephemerisSBAS;
+  struct bdsephemeris ephemerisBDS;
   struct gnssdata DataNew;
   int    GLOFreq[PRN_GLONASS_NUM]; /* frequency numbers of GLONASS + 100 */
   int    size;
@@ -501,7 +537,7 @@ struct RTCM3ParserData {
   char         fieldbufferGPS[4*RINEXENTRY_NUMBER+1];
   char         fieldbufferGLONASS[4*RINEXENTRY_NUMBER+1];
   char         fieldbufferGALILEO[4*RINEXENTRY_NUMBER+1];
-  char         fieldbufferCOMPASS[4*RINEXENTRY_NUMBER+1];
+  char         fieldbufferBDS[4*RINEXENTRY_NUMBER+1];
   char         fieldbufferQZSS[4*RINEXENTRY_NUMBER+1];
   int          numdatafields; /* for RTCM2 */
   int          validwarning;
@@ -514,10 +550,12 @@ struct RTCM3ParserData {
   const char * gpsephemeris;
   const char * qzssephemeris;
   const char * sbasephemeris;
+  const char * bdsephemeris;
   FILE *       glonassfile;
   FILE *       gpsfile;
   FILE *       qzssfile;
   FILE *       sbasfile;
+  FILE *       bdsfile;
 };
 
 #ifndef PRINTFARG
