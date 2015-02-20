@@ -503,6 +503,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
           handle->GPSWeek = week;
         }
         ret = RTCM3ID_BDS;
+        be->TOW = 0.9999E9;
       }
       break;
     case 1043:
