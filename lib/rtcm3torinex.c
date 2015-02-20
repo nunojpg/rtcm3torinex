@@ -2625,34 +2625,30 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
     int r;
     while((r = RTCM3Parser(Parser)))
     {
+      double ver = Parser->rinex3 ? 3.02 : 2.11;
       if(r == 1020 || r == RTCM3ID_BDS || r == 1019 || r == 1044 || r == 1043)
       {
         FILE *file = 0;
 
-        if(Parser->rinex3 && !(file = Parser->gpsfile))
+        if(Parser->mixedephemeris)
         {
-          const char *n = Parser->gpsephemeris ? Parser->gpsephemeris
-          : Parser->qzssephemeris ? Parser->qzssephemeris : Parser->glonassephemeris;
-          if(n)
+          if(Parser->mixedephemeris != (const char *)1)
           {
-            if(!(Parser->gpsfile = fopen(n, "w")))
+            if(!(Parser->mixedfile = fopen(Parser->mixedephemeris, "w")))
             {
               RTCM3Error("Could not open ephemeris output file.\n");
             }
             else
             {
               char buffer[100];
-              fprintf(Parser->gpsfile,
-              "%9.2f%11sN: GNSS NAV DATA    M: Mixed%12sRINEX VERSION / TYPE\n", 3.0, "", "");
+              fprintf(Parser->mixedfile,
+              "%9.2f%11sN: GNSS NAV DATA    M: Mixed%12sRINEX VERSION / TYPE\n", ver, "", "");
               HandleRunBy(buffer, sizeof(buffer), 0, Parser->rinex3);
-              fprintf(Parser->gpsfile, "%s\n%60sEND OF HEADER\n", buffer, "");
+              fprintf(Parser->mixedfile, "%s\n%60sEND OF HEADER\n", buffer, "");
             }
-            Parser->qzssephemeris = 0;
-            Parser->gpsephemeris = 0;
-            Parser->glonassephemeris = 0;
-            Parser->sbasephemeris = 0;
-            file = Parser->gpsfile;
+            Parser->mixedephemeris = (const char *)1;
           }
+          file = Parser->mixedfile;
         }
         else
         {
@@ -2668,7 +2664,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
               {
                 char buffer[100];
                 fprintf(Parser->glonassfile,
-                "%9.2f%11sG: GLONASS NAV DATA%21sRINEX VERSION / TYPE\n", 2.1, "", "");
+                "%9.2f%11sG: GLONASS NAV DATA%21sRINEX VERSION / TYPE\n", ver, "", "");
                 HandleRunBy(buffer, sizeof(buffer), 0, Parser->rinex3);
                 fprintf(Parser->glonassfile, "%s\n%60sEND OF HEADER\n", buffer, "");
               }
@@ -2688,7 +2684,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
               {
                 char buffer[100];
                 fprintf(Parser->gpsfile,
-                "%9.2f%11sN: GPS NAV DATA%25sRINEX VERSION / TYPE\n", 2.1, "", "");
+                "%9.2f%11sN: GPS NAV DATA%25sRINEX VERSION / TYPE\n", ver, "", "");
                 HandleRunBy(buffer, sizeof(buffer), 0, Parser->rinex3);
                 fprintf(Parser->gpsfile, "%s\n%60sEND OF HEADER\n", buffer, "");
               }
@@ -2708,7 +2704,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
               {
                 char buffer[100];
                 fprintf(Parser->sbasfile,
-                "%9.2f%11sN: SBAS NAV DATA%24sRINEX VERSION / TYPE\n", 2.1, "", "");
+                "%9.2f%11sN: SBAS NAV DATA%24sRINEX VERSION / TYPE\n", ver, "", "");
                 HandleRunBy(buffer, sizeof(buffer), 0, Parser->rinex3);
                 fprintf(Parser->sbasfile, "%s\n%60sEND OF HEADER\n", buffer, "");
               }
@@ -2728,7 +2724,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
               {
                 char buffer[100];
                 fprintf(Parser->qzssfile,
-                "%9.2f%11sN: QZSS NAV DATA%24sRINEX VERSION / TYPE\n", 2.1, "", "");
+                "%9.2f%11sN: QZSS NAV DATA%24sRINEX VERSION / TYPE\n", ver, "", "");
                 HandleRunBy(buffer, sizeof(buffer), 0, Parser->rinex3);
                 fprintf(Parser->qzssfile, "%s\n%60sEND OF HEADER\n", buffer, "");
               }
@@ -2748,7 +2744,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
               {
                 char buffer[100];
                 fprintf(Parser->bdsfile,
-                "%9.2f%11sN: BDS NAV DATA%25sRINEX VERSION / TYPE\n", 2.1, "", "");
+                "%9.2f%11sN: BDS NAV DATA%25sRINEX VERSION / TYPE\n", ver, "", "");
                 HandleRunBy(buffer, sizeof(buffer), 0, Parser->rinex3);
                 fprintf(Parser->bdsfile, "%s\n%60sEND OF HEADER\n", buffer, "");
               }
@@ -2836,7 +2832,7 @@ void HandleByte(struct RTCM3ParserData *Parser, unsigned int byte)
               e->clock_driftrate);
               sep = "    ";
             }
-            else
+            else /* actually this is never used, as BDS is undefined for 2.x */
             {
               ConvLine(file,
               "%02d %02d %02d %02d %02d %02d%05.1f%19.12e%19.12e%19.12e\n",
@@ -3523,6 +3519,7 @@ struct Args
   const char *qzssephemeris;
   const char *glonassephemeris;
   const char *bdsephemeris;
+  const char *mixedephemeris;
 };
 
 /* option parsing */
@@ -3543,6 +3540,7 @@ static struct option opts[] = {
 { "qzssephemeris",    required_argument, 0, 'Q'},
 { "glonassephemeris", required_argument, 0, 'G'},
 { "sbasephemeris",    required_argument, 0, 'B'},
+{ "mixedephemeris",   required_argument, 0, 'P'},
 { "rinex3",           no_argument,       0, '3'},
 { "changeobs",        no_argument,       0, 'O'},
 { "proxyport",        required_argument, 0, 'R'},
@@ -3552,7 +3550,7 @@ static struct option opts[] = {
 { "help",             no_argument,       0, 'h'},
 {0,0,0,0}};
 #endif
-#define ARGOPT "-d:s:p:r:t:f:u:E:C:G:B:Q:M:S:R:n:h3O"
+#define ARGOPT "-d:s:p:r:t:f:u:E:C:G:B:P:Q:M:S:R:n:h3O"
 
 enum MODE { HTTP = 1, RTSP = 2, NTRIP1 = 3, AUTO = 4, END };
 
@@ -3686,6 +3684,7 @@ static int getargs(int argc, char **argv, struct Args *args)
   args->sbasephemeris = 0;
   args->glonassephemeris = 0;
   args->bdsephemeris = 0;
+  args->mixedephemeris = 0;
   args->rinex3 = 0;
   args->nmea = 0;
   args->changeobs = 0;
@@ -3713,6 +3712,7 @@ static int getargs(int argc, char **argv, struct Args *args)
     case 'B': args->sbasephemeris = optarg; break;
     case 'G': args->glonassephemeris = optarg; break;
     case 'Q': args->qzssephemeris = optarg; break;
+    case 'P': args->mixedephemeris = optarg; break;
     case 'r': args->port = optarg; break;
     case '3': args->rinex3 = 1; break;
     case 'S': args->proxyhost = optarg; break;
@@ -3768,10 +3768,21 @@ static int getargs(int argc, char **argv, struct Args *args)
   datestr[4] = datestr[7] = '-';
   datestr[10] = 0;
 
-  if(args->gpsephemeris && args->glonassephemeris && args->rinex3)
+  if(args->mixedephemeris && !args->rinex3)
   {
-    RTCM3Error("RINEX3 produces a combined ephemeris file, but 2 files were specified.\n"
+    RTCM3Error("RINEX2 cannot created combined ephemeris file.\n");
+    res = 0;
+  }
+  else if(args->mixedephemeris && (args->gpsephemeris || args->glonassephemeris
+  || args->bdsephemeris || args->qzssephemeris || args->sbasephemeris))
+  {
+    RTCM3Error("Combined ephemeris file specified with another one.\n"
     "Please specify only one navigation file.\n");
+    res = 0;
+  }
+  else if(args->bdsephemeris && !args->rinex3)
+  {
+    RTCM3Error("RINEX2 cannot produce BDS ephemeris.\n");
     res = 0;
   }
   else if(!res || help)
@@ -3790,6 +3801,7 @@ static int getargs(int argc, char **argv, struct Args *args)
     " -G " LONG_OPT("--glonassephemeris ") "output file for GLONASS ephemeris data\n"
     " -Q " LONG_OPT("--qzssephemeris    ") "output file for QZSS ephemeris data\n"
     " -B " LONG_OPT("--sbasephemeris    ") "output file for SBAS ephemeris data\n"
+    " -P " LONG_OPT("--mixedephemeris   ") "output file for all ephemeris data\n"
     " -3 " LONG_OPT("--rinex3           ") "output RINEX type 3 data\n"
     " -S " LONG_OPT("--proxyhost        ") "proxy name or address\n"
     " -R " LONG_OPT("--proxyport        ") "proxy port, optional (default 2101)\n"
@@ -3897,6 +3909,7 @@ int main(int argc, char **argv)
     Parser.bdsephemeris = args.bdsephemeris;
     Parser.qzssephemeris = args.qzssephemeris;
     Parser.sbasephemeris = args.sbasephemeris;
+    Parser.mixedephemeris = args.mixedephemeris;
     Parser.rinex3 = args.rinex3;
     Parser.changeobs = args.changeobs;
 

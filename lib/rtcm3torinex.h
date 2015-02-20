@@ -551,11 +551,13 @@ struct RTCM3ParserData {
   const char * qzssephemeris;
   const char * sbasephemeris;
   const char * bdsephemeris;
+  const char * mixedephemeris;
   FILE *       glonassfile;
   FILE *       gpsfile;
   FILE *       qzssfile;
   FILE *       sbasfile;
   FILE *       bdsfile;
+  FILE *       mixedfile;
 };
 
 #ifndef PRINTFARG
