@@ -450,7 +450,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
       }
       break;
     case RTCM3ID_BDS:
-      if(size == 64)
+      if(size == 62)
       {
         struct bdsephemeris *be;
         int sv, i, week, tow;
