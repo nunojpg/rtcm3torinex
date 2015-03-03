@@ -386,6 +386,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
       break;
 #endif /* NO_RTCM3_MAIN */
     case 1019:
+      if(size == 59)
       {
         struct gpsephemeris *ge;
         int sv, i;
@@ -449,6 +450,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
       }
       break;
     case RTCM3ID_BDS:
+      if(size == 64)
       {
         struct bdsephemeris *be;
         int sv, i, week, tow;
@@ -507,7 +509,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
       }
       break;
     case 1043:
-      if(handle->GPSWeek)
+      if(size == 27 && handle->GPSWeek)
       {
         struct sbasephemeris *gs;
         int sv, i, time, tod, day;
@@ -559,6 +561,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
       }
       break;
     case 1044:
+      if(size == 59)
       {
         struct gpsephemeris *ge;
         int sv, i;
@@ -673,6 +676,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
       }
       break;
     case 1020:
+      if(size == 43)
       {
         struct glonassephemeris *ge;
         int i;
