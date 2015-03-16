@@ -740,7 +740,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         /* GETBITS(b, 11) / * GLONASS-M Na */
         /* GETFLOATSIGNM(b, 32, 1.0/(double)(1<<30)/(double)(1<<1)) / * GLONASS tau c */
         /* GETBITS(b, 5) / * GLONASS-M N4 */
-        /* GETFLOATSIGNM(b, 22, 1.0/(double)(1<<30)/(double)(1<<1)) / * GLONASS-M tau GPS */
+        /* GETFLOATSIGNM(b, 22, 1.0/(double)(1<<30)) / * GLONASS-M tau GPS */
         /* GETBITS(b, 1) / * GLONASS-M ln (fifth string) */
         ge->GPSWeek = handle->GPSWeek;
         ge->GPSTOW = handle->GPSTOW;
