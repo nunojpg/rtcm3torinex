@@ -419,6 +419,7 @@ struct sbasephemeris {
 #define GALEPHF_E5BDINVALID     (1<<1) /* E5bDVS set invalid */
 #define GALEPHF_INAV            (1<<2) /* INAV data */
 #define GALEPHF_FNAV            (1<<3) /* FNAV data */
+#define GALEPHF_E1DINVALID      (1<<4) /* E1DVS set invalid */
 
 struct galileoephemeris {
   int    flags;            /* GALEPHF_xxx */
@@ -450,6 +451,7 @@ struct galileoephemeris {
   int    SISA;
   int    E5aHS;
   int    E5bHS;
+  int    E1_HS;
 };
 
 #define RTCM3ID_BDS 63
