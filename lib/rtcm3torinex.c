@@ -657,12 +657,12 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         if(type == 1046)
         {
           GETFLOATSIGN(ge->BGD_1_5B, 10, 1.0/(double)(1<<30)/(double)(1<<2))
-          GETBITS(ge->E5aHS, 2)
+          GETBITS(ge->E5bHS, 2)
           GETBITS(sv, 1)
           ge->flags |= GALEPHF_INAV;
           if(sv)
-            ge->flags |= GALEPHF_E5ADINVALID;
-          GETBITS(ge->E5aHS, 2)
+            ge->flags |= GALEPHF_E5BDINVALID;
+          GETBITS(ge->E1_HS, 2)
           GETBITS(sv, 1)
           if(sv)
             ge->flags |= GALEPHF_E1DINVALID;
@@ -670,10 +670,10 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         else
         {
           ge->flags |= GALEPHF_FNAV;
-          GETBITS(ge->E5bHS, 2)
+          GETBITS(ge->E5aHS, 2)
           GETBITS(sv, 1)
           if(sv)
-            ge->flags |= GALEPHF_E5BDINVALID;
+            ge->flags |= GALEPHF_E5ADINVALID;
         }
         ret = type;
       }
