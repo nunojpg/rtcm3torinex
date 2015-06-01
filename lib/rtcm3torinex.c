@@ -631,6 +631,7 @@ int RTCM3Parser(struct RTCM3ParserData *handle)
         GETBITS(sv, 6)
         ge->satellite = sv;
         GETBITS(ge->Week, 12)
+        ge->Week += 1024;
         GETBITS(ge->IODnav, 10)
         GETBITS(ge->SISA, 8)
         GETFLOATSIGN(ge->IDOT, 14, R2R_PI/(double)(1<<30)/(double)(1<<13))
